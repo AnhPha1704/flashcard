@@ -16,9 +16,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flashcard.R
 import com.example.flashcard.ui.components.FlashcardCard
+import com.example.flashcard.ui.components.SwipeDirection
 import com.example.flashcard.ui.theme.*
 import com.example.flashcard.ui.viewmodel.StudyViewModel
 
@@ -53,6 +54,9 @@ fun StudyScreen(
     val isCompleted by viewModel.isCompleted.collectAsState()
     val isTtsReady by ttsHelper.isReady.collectAsState()
 
+    // State to trigger external swipe
+    var pendingSwipe by remember { mutableStateOf<SwipeDirection?>(null) }
+
     LaunchedEffect(cards, currentIndex, isTtsReady) {
         if (isTtsReady && cards.isNotEmpty() && currentIndex < cards.size) {
             ttsHelper.speak(cards[currentIndex].front)
@@ -65,7 +69,7 @@ fun StudyScreen(
         }
     }
 
-    // --- Outer container: Pink background for consistency ---
+    // --- Outer container: Pink background ---
     Box(modifier = Modifier.fillMaxSize().background(NeoBackgroundPink)) {
 
         // === Labyrinth strip TOP ===
@@ -77,7 +81,7 @@ fun StudyScreen(
                 .height(160.dp)
                 .align(Alignment.TopCenter),
             contentScale = ContentScale.Crop,
-            alpha = 0.2f // Subtle in pink background
+            alpha = 0.2f
         )
 
         // === Main content scaffold on top ===
@@ -90,7 +94,6 @@ fun StudyScreen(
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Back Button
                 IconButton(
                     onClick = onBack,
                     modifier = Modifier
@@ -103,7 +106,6 @@ fun StudyScreen(
                 
                 Spacer(modifier = Modifier.weight(1f))
                 
-                // Progress Pill
                 if (cards.isNotEmpty() && !isLoading && !isCompleted) {
                     Surface(
                         color = NeoWhite,
@@ -122,7 +124,6 @@ fun StudyScreen(
                 
                 Spacer(modifier = Modifier.weight(1f))
                 
-                // Restart Button
                 IconButton(
                     onClick = { viewModel.restartSession() },
                     modifier = Modifier
@@ -157,9 +158,18 @@ fun StudyScreen(
                         cards = cards,
                         currentIndex = currentIndex,
                         isFlipped = isFlipped,
+                        pendingSwipe = pendingSwipe,
                         onFlip = { viewModel.flipCard() },
-                        onLearned = { viewModel.swipeLearned() },
-                        onReview = { viewModel.swipeReview() },
+                        onLearnedComplete = { 
+                            pendingSwipe = null
+                            viewModel.swipeLearned() 
+                        },
+                        onReviewComplete = { 
+                            pendingSwipe = null
+                            viewModel.swipeReview() 
+                        },
+                        onLearnedClick = { pendingSwipe = SwipeDirection.RIGHT },
+                        onReviewClick = { pendingSwipe = SwipeDirection.LEFT },
                         onSpeak = { text -> ttsHelper.speak(text) }
                     )
                 }
@@ -211,9 +221,12 @@ private fun StudyMainContent(
     cards: List<com.example.flashcard.data.local.entity.Flashcard>,
     currentIndex: Int,
     isFlipped: Boolean,
+    pendingSwipe: SwipeDirection?,
     onFlip: () -> Unit,
-    onLearned: () -> Unit,
-    onReview: () -> Unit,
+    onLearnedComplete: () -> Unit,
+    onReviewComplete: () -> Unit,
+    onLearnedClick: () -> Unit,
+    onReviewClick: () -> Unit,
     onSpeak: (String) -> Unit
 ) {
     Column(
@@ -223,7 +236,6 @@ private fun StudyMainContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         
-        // --- Custom Segmented Progress Bar ---
         Row(
             modifier = Modifier.fillMaxWidth().height(12.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -252,11 +264,9 @@ private fun StudyMainContent(
             AnimatedContent(
                 targetState = currentIndex,
                 transitionSpec = {
-                    if (targetState > initialState) {
-                        (slideInHorizontally { it } + fadeIn()).togetherWith(slideOutHorizontally { -it } + fadeOut())
-                    } else {
-                        (slideInHorizontally { -it } + fadeIn()).togetherWith(slideOutHorizontally { it } + fadeOut())
-                    }.using(SizeTransform(clip = false))
+                    // Enter from side faster, but exit with only fade
+                    (slideInHorizontally(animationSpec = tween(200)) { it } + fadeIn(animationSpec = tween(200)))
+                        .togetherWith(fadeOut(animationSpec = tween(150)))
                 },
                 label = "CardTransition"
             ) { index ->
@@ -264,8 +274,10 @@ private fun StudyMainContent(
                     flashcard = cards[index],
                     isFlipped = isFlipped,
                     onFlip = onFlip,
-                    onSwipeLeft = { onReview() },
-                    onSwipeRight = { onLearned() },
+                    onSwipeLeft = onReviewComplete,
+                    onSwipeRight = onLearnedComplete,
+                    externalSwipeTrigger = pendingSwipe,
+                    onSwipeComplete = { /* Handled by individual callbacks */ },
                     onSpeak = onSpeak
                 )
             }
@@ -275,16 +287,16 @@ private fun StudyMainContent(
 
         // --- Forgot / Know buttons ---
         StudyControls(
-            onReview = onReview,
-            onLearned = onLearned
+            onReviewClick = onReviewClick,
+            onLearnedClick = onLearnedClick
         )
     }
 }
 
 @Composable
 private fun StudyControls(
-    onReview: () -> Unit,
-    onLearned: () -> Unit
+    onReviewClick: () -> Unit,
+    onLearnedClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -293,9 +305,9 @@ private fun StudyControls(
         horizontalArrangement = Arrangement.spacedBy(20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Nút Forgot (Ôn lại) - Redish theme for "Wrong/Forgot" within Neo Brutalist
         val reviewColor = Color(0xFFFF9BAA) 
-        
+        val learnedColor = Color(0xFFC7F4C2)
+
         Box(modifier = Modifier.weight(1f)) {
             Box(
                 modifier = Modifier
@@ -304,7 +316,7 @@ private fun StudyControls(
                     .background(NeoNavy, RoundedCornerShape(16.dp))
             )
             Surface(
-                onClick = onReview,
+                onClick = onReviewClick,
                 color = reviewColor,
                 shape = RoundedCornerShape(16.dp),
                 border = BorderStroke(3.dp, NeoNavy),
@@ -325,8 +337,6 @@ private fun StudyControls(
             }
         }
 
-        // Nút Know (Thuộc) - Greenish theme for "Correct/Know"
-        val learnedColor = Color(0xFFC7F4C2)
         Box(modifier = Modifier.weight(1f)) {
             Box(
                 modifier = Modifier
@@ -335,7 +345,7 @@ private fun StudyControls(
                     .background(NeoNavy, RoundedCornerShape(16.dp))
             )
             Surface(
-                onClick = onLearned,
+                onClick = onLearnedClick,
                 color = learnedColor,
                 shape = RoundedCornerShape(16.dp),
                 border = BorderStroke(3.dp, NeoNavy),
@@ -372,7 +382,6 @@ private fun CompletionScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Completion icon
         Box {
             Box(
                 modifier = Modifier
@@ -411,7 +420,6 @@ private fun CompletionScreen(
         Spacer(modifier = Modifier.height(64.dp))
 
         Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            // Nút Học lại
             Box {
                 Box(
                     modifier = Modifier
@@ -437,7 +445,6 @@ private fun CompletionScreen(
                 }
             }
 
-            // Nút Về màn hình chính
             Surface(
                 onClick = onBack,
                 color = NeoWhite,

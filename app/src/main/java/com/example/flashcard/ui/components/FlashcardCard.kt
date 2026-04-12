@@ -32,6 +32,10 @@ import androidx.compose.foundation.BorderStroke
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
+enum class SwipeDirection {
+    LEFT, RIGHT
+}
+
 @Composable
 fun FlashcardCard(
     flashcard: Flashcard,
@@ -40,6 +44,8 @@ fun FlashcardCard(
     onSwipeLeft: () -> Unit = {},
     onSwipeRight: () -> Unit = {},
     onSpeak: (String) -> Unit = {},
+    externalSwipeTrigger: SwipeDirection? = null,
+    onSwipeComplete: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
@@ -55,6 +61,16 @@ fun FlashcardCard(
         offsetX.snapTo(0f)
     }
 
+    // Handle external swipe trigger (from buttons)
+    LaunchedEffect(externalSwipeTrigger) {
+        externalSwipeTrigger?.let { direction ->
+            val targetX = if (direction == SwipeDirection.RIGHT) 1500f else -1500f
+            offsetX.animateTo(targetX, spring(stiffness = Spring.StiffnessMedium))
+            if (direction == SwipeDirection.RIGHT) onSwipeRight() else onSwipeLeft()
+            onSwipeComplete()
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -64,12 +80,12 @@ fun FlashcardCard(
                     onDragEnd = {
                         if (offsetX.value > 400f) {
                             scope.launch {
-                                offsetX.animateTo(1500f, spring(stiffness = Spring.StiffnessLow))
+                                offsetX.animateTo(1500f, spring(stiffness = Spring.StiffnessMedium))
                                 onSwipeRight()
                             }
                         } else if (offsetX.value < -400f) {
                             scope.launch {
-                                offsetX.animateTo(-1500f, spring(stiffness = Spring.StiffnessLow))
+                                offsetX.animateTo(-1500f, spring(stiffness = Spring.StiffnessMedium))
                                 onSwipeLeft()
                             }
                         } else {
