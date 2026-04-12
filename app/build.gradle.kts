@@ -89,4 +89,6 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.firestore)
+    implementation(libs.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
 }
