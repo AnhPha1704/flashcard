@@ -109,6 +109,8 @@ fun StudyScreen(
                         onFlip = { viewModel.flipCard() },
                         onPrevious = { viewModel.previousCard() },
                         onNext = { viewModel.nextCard() },
+                        onLearned = { viewModel.swipeLearned() },
+                        onReview = { viewModel.swipeReview() },
                         onBack = onBack,
                         onRestart = { viewModel.restartSession() }
                     )
@@ -168,6 +170,8 @@ private fun StudyMainContent(
     onFlip: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onLearned: () -> Unit,
+    onReview: () -> Unit,
     onBack: () -> Unit,
     onRestart: () -> Unit
 ) {
@@ -244,7 +248,9 @@ private fun StudyMainContent(
                 FlashcardCard(
                     flashcard = cards[index],
                     isFlipped = isFlipped,
-                    onFlip = onFlip
+                    onFlip = onFlip,
+                    onSwipeLeft = { onReview() },
+                    onSwipeRight = { onLearned() }
                 )
             }
         }

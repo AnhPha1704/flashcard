@@ -48,7 +48,7 @@
 - [ ] **Màn hình học tập:**
     - [ x] Thiết kế hiệu ứng lật thẻ (**Card Flip Animation**) bằng Compose `graphicsLayer`.
     - [ x] Áp dụng hệ thống màu sắc và font chữ theo chuẩn **Material Design 3**.
-- [ ] **Tương tác:** Tích hợp cử chỉ vuốt (**Swipe**) để đánh dấu trạng thái thuộc bài nhanh chóng.
+- [x] **Tương tác:** Tích hợp cử chỉ vuốt (**Swipe**) để đánh dấu trạng thái thuộc bài nhanh chóng.
 
 ---
 

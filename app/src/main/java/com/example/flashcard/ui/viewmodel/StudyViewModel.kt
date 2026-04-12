@@ -47,6 +47,16 @@ class StudyViewModel @Inject constructor(
         _isFlipped.value = !_isFlipped.value
     }
 
+    fun swipeLearned() {
+        // Tương lai: Cập nhật SRS logic ở đây (ví dụ: tăng level thuộc bài)
+        nextCard()
+    }
+
+    fun swipeReview() {
+        // Tương lai: Cập nhật SRS logic ở đây (ví dụ: đặt lại level về 0)
+        nextCard()
+    }
+
     fun nextCard() {
         if (_currentIndex.value < _cards.value.size - 1) {
             _currentIndex.value += 1
