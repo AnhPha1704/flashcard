@@ -9,8 +9,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,13 +26,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.flashcard.domain.worker.WorkManagerScheduler
 import com.example.flashcard.domain.repository.FlashcardRepository
-import com.example.flashcard.main.MainViewModel
 import com.example.flashcard.ui.screens.*
 import com.example.flashcard.ui.theme.FlashcardTheme
 import com.example.flashcard.ui.theme.NeoBackgroundPink
@@ -98,19 +102,16 @@ class MainActivity : ComponentActivity() {
                 }
 
                 when (val screen = currentScreen) {
-                    // ── Splash ────────────────────────────────────────────
                     is Screen.Splash -> {
                         SplashScreen {
                             currentScreen = if (currentUser != null) Screen.MainApp else Screen.Login
                         }
                     }
 
-                    // ── Login ─────────────────────────────────────────────
                     is Screen.Login -> {
                         LoginScreen(viewModel = authViewModel)
                     }
 
-                    // ── Main App with Bottom Navigation ───────────────────
                     is Screen.MainApp -> {
                         Scaffold(
                             containerColor = NeoBackgroundPink,
@@ -121,28 +122,41 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                         ) { innerPadding ->
-                            Box(modifier = Modifier.padding(innerPadding)) {
-                                when (currentTab) {
-                                    BottomTab.HOME -> HomeScreen(
-                                        onDeckClick = { deckId ->
-                                            currentScreen = Screen.DeckDetail(deckId)
+                            Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+                                AnimatedContent(
+                                    targetState = currentTab,
+                                    transitionSpec = {
+                                        if (targetState.ordinal > initialState.ordinal) {
+                                            (slideInHorizontally { it } + fadeIn()).togetherWith(slideOutHorizontally { -it } + fadeOut())
+                                        } else {
+                                            (slideInHorizontally { -it } + fadeIn()).togetherWith(slideOutHorizontally { it } + fadeOut())
+                                        }.using(SizeTransform(clip = false))
+                                    },
+                                    label = "TabTransition"
+                                ) { tab ->
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        when (tab) {
+                                            BottomTab.HOME -> HomeScreen(
+                                                onDeckClick = { deckId ->
+                                                    currentScreen = Screen.DeckDetail(deckId)
+                                                }
+                                            )
+                                            BottomTab.DECKS -> HomeScreen(
+                                                onDeckClick = { deckId ->
+                                                    currentScreen = Screen.DeckDetail(deckId)
+                                                }
+                                            )
+                                            BottomTab.STATS -> StatisticsScreen()
+                                            BottomTab.SETTINGS -> SettingsScreen(
+                                                onLogoutClick = { authViewModel.signOut() }
+                                            )
                                         }
-                                    )
-                                    BottomTab.DECKS -> HomeScreen(
-                                        onDeckClick = { deckId ->
-                                            currentScreen = Screen.DeckDetail(deckId)
-                                        }
-                                    )
-                                    BottomTab.STATS -> StatisticsScreen()
-                                    BottomTab.SETTINGS -> SettingsScreen(
-                                        onLogoutClick = { authViewModel.signOut() }
-                                    )
+                                    }
                                 }
                             }
                         }
                     }
 
-                    // ── Deck Detail ───────────────────────────────────────
                     is Screen.DeckDetail -> {
                         DeckDetailScreen(
                             deckId = screen.deckId,
@@ -151,7 +165,6 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // ── Study ─────────────────────────────────────────────
                     is Screen.Study -> {
                         StudyScreen(
                             deckId = screen.deckId,
@@ -177,7 +190,7 @@ class MainActivity : ComponentActivity() {
 }
 
 // ──────────────────────────────────────────
-// Bottom Navigation Bar (Neo-Brutalism)
+// Bottom Navigation Bar (Neo-Brutalism Animated)
 // ──────────────────────────────────────────
 @Composable
 fun NeoBottomNavigationBar(
@@ -187,47 +200,94 @@ fun NeoBottomNavigationBar(
     Surface(
         color = NeoNavy,
         border = BorderStroke(3.dp, NeoNavy),
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-        modifier = Modifier.fillMaxWidth()
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        modifier = Modifier.fillMaxWidth().height(80.dp + 16.dp) // Fixed height + padding
     ) {
-        Row(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(vertical = 8.dp)
         ) {
-            BottomTab.entries.forEach { tab ->
-                val isSelected = selectedTab == tab
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Surface(
-                        onClick = { onTabSelected(tab) },
-                        color = if (isSelected) NeoBackgroundPink else NeoNavy,
-                        shape = RoundedCornerShape(12.dp),
-                        border = if (isSelected) BorderStroke(2.dp, NeoWhite) else null,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+            val tabWidth = maxWidth / BottomTab.entries.size
+            val indicatorOffset by animateDpAsState(
+                targetValue = tabWidth * selectedTab.ordinal,
+                animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                label = "IndicatorOffset"
+            )
+
+            // --- Sliding Indicator Pill ---
+            Box(
+                modifier = Modifier
+                    .offset(x = indicatorOffset)
+                    .width(tabWidth)
+                    .fillMaxHeight() // Now constrained by the Surface height
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Surface(
+                    color = NeoBackgroundPink,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(2.dp, NeoWhite),
+                    modifier = Modifier.fillMaxSize()
+                ) {}
+            }
+
+            // --- Tab Icons ---
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BottomTab.entries.forEach { tab ->
+                    val isSelected = selectedTab == tab
+                    
+                    val iconScale by animateFloatAsState(
+                        targetValue = if (isSelected) 1.2f else 1.0f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                        label = "IconScale"
+                    )
+                    
+                    val contentColor by animateColorAsState(
+                        targetValue = if (isSelected) NeoNavy else NeoWhite.copy(alpha = 0.6f),
+                        label = "ContentColor"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(64.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null 
+                            ) { onTabSelected(tab) },
+                        contentAlignment = Alignment.Center
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = iconScale
+                                scaleY = iconScale
+                            }
                         ) {
                             Icon(
                                 imageVector = tab.icon,
                                 contentDescription = tab.label,
-                                tint = if (isSelected) NeoNavy else NeoWhite.copy(alpha = 0.6f),
-                                modifier = Modifier.size(22.dp)
+                                tint = contentColor,
+                                modifier = Modifier.size(24.dp)
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = tab.label,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = if (isSelected) FontWeight.Black else FontWeight.Normal,
-                                color = if (isSelected) NeoNavy else NeoWhite.copy(alpha = 0.6f)
-                            )
+                            AnimatedVisibility(
+                                visible = isSelected,
+                                enter = expandVertically() + fadeIn(),
+                                exit = shrinkVertically() + fadeOut()
+                            ) {
+                                Text(
+                                    text = tab.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Black,
+                                    color = contentColor,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
                         }
                     }
                 }
