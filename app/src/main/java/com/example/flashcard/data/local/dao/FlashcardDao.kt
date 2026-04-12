@@ -23,4 +23,7 @@ interface FlashcardDao {
 
     @Query("SELECT * FROM flashcards WHERE deckId = :deckId AND nextReview <= :currentTime")
     fun getCardsToReview(deckId: Int, currentTime: Long): Flow<List<Flashcard>>
+
+    @Query("SELECT * FROM flashcards WHERE isSynced = 0")
+    suspend fun getUnsyncedFlashcards(): List<Flashcard>
 }

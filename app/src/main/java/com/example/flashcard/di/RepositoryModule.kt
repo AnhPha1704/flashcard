@@ -23,6 +23,12 @@ abstract class RepositoryModule {
         flashcardRepositoryImpl: FlashcardRepositoryImpl
     ): FlashcardRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindAuthRepository(
+        authRepositoryImpl: com.example.flashcard.data.repository.AuthRepositoryImpl
+    ): com.example.flashcard.domain.repository.AuthRepository
+
     companion object {
         @Provides
         @Singleton

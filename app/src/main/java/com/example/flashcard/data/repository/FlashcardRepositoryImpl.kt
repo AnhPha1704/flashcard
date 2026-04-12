@@ -8,6 +8,13 @@ import com.example.flashcard.domain.repository.FlashcardRepository
 import com.example.flashcard.data.remote.FirestoreDataSource
 import kotlinx.coroutines.flow.Flow
 import android.util.Log
+import android.content.Context
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.example.flashcard.data.worker.SyncWorker
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,7 +22,8 @@ import javax.inject.Singleton
 class FlashcardRepositoryImpl @Inject constructor(
     private val deckDao: DeckDao,
     private val flashcardDao: FlashcardDao,
-    private val firestoreDataSource: FirestoreDataSource
+    private val firestoreDataSource: FirestoreDataSource,
+    @ApplicationContext private val context: Context
 ) : FlashcardRepository {
 
     // Deck operations
@@ -32,6 +40,7 @@ class FlashcardRepositoryImpl @Inject constructor(
             deckDao.updateDeck(newDeck.copy(isSynced = true))
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
+            scheduleSyncWorker()
         }
         return id
     }
@@ -44,6 +53,7 @@ class FlashcardRepositoryImpl @Inject constructor(
             deckDao.updateDeck(lastModifiedDeck.copy(isSynced = true))
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
+            scheduleSyncWorker()
         }
         return result
     }
@@ -54,6 +64,7 @@ class FlashcardRepositoryImpl @Inject constructor(
             firestoreDataSource.deleteDeck(deck.id)
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
+            scheduleSyncWorker()
         }
         return result
     }
@@ -73,6 +84,7 @@ class FlashcardRepositoryImpl @Inject constructor(
             flashcardDao.updateFlashcard(newCard.copy(isSynced = true))
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
+            scheduleSyncWorker()
         }
         return id
     }
@@ -85,6 +97,7 @@ class FlashcardRepositoryImpl @Inject constructor(
             flashcardDao.updateFlashcard(lastModifiedCard.copy(isSynced = true))
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
+            scheduleSyncWorker()
         }
         return result
     }
@@ -95,6 +108,7 @@ class FlashcardRepositoryImpl @Inject constructor(
             firestoreDataSource.deleteFlashcard(flashcard.deckId, flashcard.id)
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
+            scheduleSyncWorker()
         }
         return result
     }
@@ -125,5 +139,18 @@ class FlashcardRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi trong quá trình đồng bộ toàn diện", e)
         }
+    }
+
+    private fun scheduleSyncWorker() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+            
+        val syncWorkRequest = OneTimeWorkRequestBuilder<SyncWorker>()
+            .setConstraints(constraints)
+            .build()
+            
+        WorkManager.getInstance(context).enqueue(syncWorkRequest)
+        Log.d("FlashcardRepo", "Đã lên lịch SyncWorker để đồng bộ lại sau.")
     }
 }

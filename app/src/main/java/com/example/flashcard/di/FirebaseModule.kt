@@ -18,4 +18,10 @@ object FirebaseModule {
     fun provideFirestore(): FirebaseFirestore {
         return Firebase.firestore
     }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseAuth(): com.google.firebase.auth.FirebaseAuth {
+        return com.google.firebase.auth.FirebaseAuth.getInstance()
+    }
 }

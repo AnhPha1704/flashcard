@@ -23,4 +23,7 @@ interface DeckDao {
 
     @Query("SELECT * FROM decks WHERE id = :id")
     suspend fun getDeckById(id: Int): Deck?
+
+    @Query("SELECT * FROM decks WHERE isSynced = 0")
+    suspend fun getUnsyncedDecks(): List<Deck>
 }
