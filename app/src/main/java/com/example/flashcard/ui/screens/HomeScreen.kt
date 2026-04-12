@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flashcard.domain.util.ConnectivityObserver
 import com.example.flashcard.main.MainViewModel
+import com.example.flashcard.main.SortType
 import com.example.flashcard.ui.components.AddEditDeckDialog
 import com.example.flashcard.ui.components.DeckCard
 import com.example.flashcard.ui.components.EmptyState
@@ -46,6 +48,7 @@ fun HomeScreen(
 ) {
     val decks by viewModel.decks.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val sortType by viewModel.sortType.collectAsState()
     val status by viewModel.networkStatus.collectAsState()
     
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -55,6 +58,7 @@ fun HomeScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var deckToEdit by remember { mutableStateOf<Deck?>(null) }
     var expandedDeckId by remember { mutableStateOf<Int?>(null) }
+    var showSortMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -127,26 +131,73 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     item {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { viewModel.updateSearchQuery(it) },
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("Tìm kiếm bộ thẻ...") },
-                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                            trailingIcon = {
-                                if (searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                                        Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { viewModel.updateSearchQuery(it) },
+                                modifier = Modifier.weight(1f),
+                                placeholder = { Text("Tìm kiếm bộ thẻ...") },
+                                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                                trailingIcon = {
+                                    if (searchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                            Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                                        }
                                     }
-                                }
-                            },
-                            shape = MaterialTheme.shapes.large,
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                },
+                                shape = MaterialTheme.shapes.large,
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                )
                             )
-                        )
+                            
+                            Spacer(modifier = Modifier.width(8.dp))
+                            
+                            Box {
+                                IconButton(
+                                    onClick = { showSortMenu = true },
+                                    modifier = Modifier
+                                        .background(
+                                            color = MaterialTheme.colorScheme.secondaryContainer,
+                                            shape = CircleShape
+                                        )
+                                        .padding(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FilterList,
+                                        contentDescription = "Sắp xếp",
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                                
+                                DropdownMenu(
+                                    expanded = showSortMenu,
+                                    onDismissRequest = { showSortMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Mới nhất", fontWeight = if (sortType == SortType.DATE_NEWEST) FontWeight.Bold else FontWeight.Normal) },
+                                        onClick = { viewModel.updateSortType(SortType.DATE_NEWEST); showSortMenu = false }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Cũ nhất", fontWeight = if (sortType == SortType.DATE_OLDEST) FontWeight.Bold else FontWeight.Normal) },
+                                        onClick = { viewModel.updateSortType(SortType.DATE_OLDEST); showSortMenu = false }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Tên (A-Z)", fontWeight = if (sortType == SortType.NAME_ASC) FontWeight.Bold else FontWeight.Normal) },
+                                        onClick = { viewModel.updateSortType(SortType.NAME_ASC); showSortMenu = false }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Tên (Z-A)", fontWeight = if (sortType == SortType.NAME_DESC) FontWeight.Bold else FontWeight.Normal) },
+                                        onClick = { viewModel.updateSortType(SortType.NAME_DESC); showSortMenu = false }
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     if (decks.isEmpty()) {
