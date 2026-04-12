@@ -1,6 +1,5 @@
 package com.example.flashcard.ui.viewmodel
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flashcard.data.local.entity.Flashcard
@@ -27,15 +26,23 @@ class StudyViewModel @Inject constructor(
     private val _isCompleted = MutableStateFlow(false)
     val isCompleted: StateFlow<Boolean> = _isCompleted.asStateFlow()
 
-    // Trạng thái tải dữ liệu
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    // Đếm số thẻ đã thuộc/cần ôn trong phiên này
+    private val _sessionLearnedCount = MutableStateFlow(0)
+    val sessionLearnedCount: StateFlow<Int> = _sessionLearnedCount.asStateFlow()
+
+    private val _sessionReviewCount = MutableStateFlow(0)
+    val sessionReviewCount: StateFlow<Int> = _sessionReviewCount.asStateFlow()
 
     fun loadDeck(deckId: Int) {
         viewModelScope.launch {
             _isLoading.value = true
             _isCompleted.value = false
             _currentIndex.value = 0
+            _sessionLearnedCount.value = 0
+            _sessionReviewCount.value = 0
             repository.getFlashcardsByDeck(deckId).collect {
                 _cards.value = it
                 _isLoading.value = false
@@ -47,13 +54,44 @@ class StudyViewModel @Inject constructor(
         _isFlipped.value = !_isFlipped.value
     }
 
+    /**
+     * Đánh dấu thẻ là ĐÃ THUỘC (Easy):
+     * - Tăng repetitions lên 1
+     * - Cập nhật lastModified → thống kê streak/biểu đồ sẽ ghi nhận hôm nay
+     */
     fun swipeLearned() {
-        // Tương lai: Cập nhật SRS logic ở đây (ví dụ: tăng level thuộc bài)
+        val index = _currentIndex.value
+        val card = _cards.value.getOrNull(index) ?: return
+        viewModelScope.launch {
+            val updatedCard = card.copy(
+                repetitions = card.repetitions + 1,
+                lastModified = System.currentTimeMillis()
+            )
+            repository.updateFlashcard(updatedCard)
+            // Cập nhật list local để UI phản ánh ngay
+            _cards.value = _cards.value.toMutableList().also { it[index] = updatedCard }
+            _sessionLearnedCount.value += 1
+        }
         nextCard()
     }
 
+    /**
+     * Đánh dấu thẻ là CẦN ÔN LẠI (Hard):
+     * - Reset repetitions về 0
+     * - Cập nhật lastModified
+     */
     fun swipeReview() {
-        // Tương lai: Cập nhật SRS logic ở đây (ví dụ: đặt lại level về 0)
+        val index = _currentIndex.value
+        val card = _cards.value.getOrNull(index) ?: return
+        viewModelScope.launch {
+            val updatedCard = card.copy(
+                repetitions = 0,
+                lastModified = System.currentTimeMillis()
+            )
+            repository.updateFlashcard(updatedCard)
+            _cards.value = _cards.value.toMutableList().also { it[index] = updatedCard }
+            _sessionReviewCount.value += 1
+        }
         nextCard()
     }
 
@@ -76,12 +114,12 @@ class StudyViewModel @Inject constructor(
             _isFlipped.value = false
         }
     }
-    
-    // Hàm để reset phiên học
+
     fun restartSession() {
         _currentIndex.value = 0
         _isFlipped.value = false
         _isCompleted.value = false
+        _sessionLearnedCount.value = 0
+        _sessionReviewCount.value = 0
     }
 }
-

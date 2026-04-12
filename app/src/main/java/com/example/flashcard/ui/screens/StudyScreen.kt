@@ -58,6 +58,8 @@ fun StudyScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val isCompleted by viewModel.isCompleted.collectAsState()
     val isTtsReady by ttsHelper.isReady.collectAsState()
+    val sessionLearnedCount by viewModel.sessionLearnedCount.collectAsState()
+    val sessionReviewCount by viewModel.sessionReviewCount.collectAsState()
 
     // --- Tự động phát âm Mặt trước khi chuyển thẻ hoặc khi TTS vừa sẵn sàng ---
     LaunchedEffect(cards, currentIndex, isTtsReady) {
@@ -119,6 +121,8 @@ fun StudyScreen(
                 } else if (isCompleted) {
                     CompletionScreen(
                         totalCards = cards.size,
+                        learnedCount = sessionLearnedCount,
+                        reviewCount = sessionReviewCount,
                         onRestart = { viewModel.restartSession() },
                         onBack = onBack
                     )
@@ -134,7 +138,9 @@ fun StudyScreen(
                         onReview = { viewModel.swipeReview() },
                         onSpeak = { text -> ttsHelper.speak(text) },
                         onBack = onBack,
-                        onRestart = { viewModel.restartSession() }
+                        onRestart = { viewModel.restartSession() },
+                        sessionLearnedCount = sessionLearnedCount,
+                        sessionReviewCount = sessionReviewCount
                     )
                 }
             }
@@ -241,7 +247,9 @@ private fun StudyMainContent(
     onReview: () -> Unit,
     onSpeak: (String) -> Unit,
     onBack: () -> Unit,
-    onRestart: () -> Unit
+    onRestart: () -> Unit,
+    sessionLearnedCount: Int,
+    sessionReviewCount: Int
 ) {
     Column(
         modifier = Modifier
@@ -326,13 +334,55 @@ private fun StudyMainContent(
 
         Spacer(modifier = Modifier.weight(0.1f))
 
-        // --- Các nút điều khiển điều hướng ---
+        // --- Mini session stats ---
+        if (sessionLearnedCount > 0 || sessionReviewCount > 0) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+            ) {
+                if (sessionLearnedCount > 0) {
+                    Surface(
+                        color = Color(0xFF22C55E).copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Text(
+                            text = "✓ $sessionLearnedCount đã thuộc",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color(0xFF22C55E),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                if (sessionReviewCount > 0) {
+                    Surface(
+                        color = Color(0xFFEF4444).copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Text(
+                            text = "✗ $sessionReviewCount cần ôn",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color(0xFFEF4444),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // --- Các nút điều khiển ---
         StudyControls(
             currentIndex = currentIndex,
             totalCards = cards.size,
             isFlipped = isFlipped,
             onPrevious = onPrevious,
             onNext = onNext,
+            onLearned = onLearned,
+            onReview = onReview,
             onRestart = onRestart
         )
     }
@@ -341,6 +391,8 @@ private fun StudyMainContent(
 @Composable
 private fun CompletionScreen(
     totalCards: Int,
+    learnedCount: Int,
+    reviewCount: Int,
     onRestart: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -365,27 +417,84 @@ private fun CompletionScreen(
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
+
+        Spacer(modifier = Modifier.height(24.dp))
+
         Text(
-            text = "Tuyệt vời!",
+            text = "Tuyệt vời! 🎉",
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Black,
             color = MaterialTheme.colorScheme.onSurface
         )
-        
+
         Text(
-            text = "Bạn đã hoàn thành bộ thẻ này với $totalCards kiến thức mới được tiếp thu.",
+            text = "Bạn đã hoàn thành phiên học!",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp)
         )
-        
-        Spacer(modifier = Modifier.height(48.dp))
-        
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Kết quả phiên học
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Đã thuộc
+            Surface(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFF22C55E).copy(alpha = 0.12f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = "✓", fontSize = 28.sp, color = Color(0xFF22C55E))
+                    Text(
+                        text = "$learnedCount",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF22C55E)
+                    )
+                    Text(
+                        text = "Đã thuộc",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            // Cần ôn lại
+            Surface(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFFEF4444).copy(alpha = 0.12f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = "↺", fontSize = 28.sp, color = Color(0xFFEF4444))
+                    Text(
+                        text = "$reviewCount",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFFEF4444)
+                    )
+                    Text(
+                        text = "Cần ôn lại",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
                 onClick = onRestart,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -395,7 +504,7 @@ private fun CompletionScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Học lại từ đầu")
             }
-            
+
             OutlinedButton(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -442,60 +551,99 @@ private fun StudyControls(
     isFlipped: Boolean,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onLearned: () -> Unit,
+    onReview: () -> Unit,
     onRestart: () -> Unit
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 40.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Nút Quay lại
-        FilledTonalIconButton(
-            onClick = onPrevious,
-            enabled = currentIndex > 0,
-            modifier = Modifier.size(72.dp),
-            shape = MaterialTheme.shapes.large,
-            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
-            )
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Thẻ trước",
-                modifier = Modifier.size(32.dp)
-            )
-        }
-
-        // Nút Tiếp theo / Hoàn thành
-        Button(
-            onClick = onNext,
-            modifier = Modifier
-                .height(72.dp)
-                .fillMaxWidth(0.6f),
-            shape = MaterialTheme.shapes.large,
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
+        // Hàng 1: Nút Cần ôn lại và Đã thuộc (chỉ hiện khi đã lật thẻ)
+        AnimatedVisibility(
+            visible = isFlipped,
+            enter = fadeIn() + slideInVertically { it },
+            exit = fadeOut() + slideOutVertically { it }
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                val text = if (currentIndex < totalCards - 1) "Tiếp theo" else "Hoàn thành"
-                val icon = if (currentIndex < totalCards - 1) 
-                    Icons.AutoMirrored.Filled.ArrowForward else Icons.Default.Star
-                
+                // Nút Cần ôn lại (đỏ)
+                Button(
+                    onClick = onReview,
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFEF4444),
+                        contentColor = Color.White
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                ) {
+                    Text(
+                        text = "✗  Cần ôn lại",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                // Nút Đã thuộc (xanh)
+                Button(
+                    onClick = onLearned,
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF22C55E),
+                        contentColor = Color.White
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                ) {
+                    Text(
+                        text = "✓  Đã thuộc",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Hàng 2: Quay lại + Tiếp theo/Hoàn thành
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilledTonalIconButton(
+                onClick = onPrevious,
+                enabled = currentIndex > 0,
+                modifier = Modifier.size(56.dp),
+                shape = MaterialTheme.shapes.large,
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Thẻ trước",
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Button(
+                onClick = onNext,
+                modifier = Modifier.weight(1f).height(56.dp),
+                shape = MaterialTheme.shapes.large,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            ) {
+                val text = if (currentIndex < totalCards - 1) "Bỏ qua →" else "Hoàn thành"
                 Text(
                     text = text,
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 18.sp
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
