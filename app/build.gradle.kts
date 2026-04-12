@@ -90,4 +90,7 @@ dependencies {
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.auth)
+
+    // Konfetti celebratory fireworks
+    implementation(libs.konfetti.compose)
 }

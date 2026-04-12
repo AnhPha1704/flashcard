@@ -2,6 +2,11 @@ package com.example.flashcard.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import nl.dionsegijn.konfetti.compose.KonfettiView
+import nl.dionsegijn.konfetti.core.Party
+import nl.dionsegijn.konfetti.core.Position
+import nl.dionsegijn.konfetti.core.emitter.Emitter
+import java.util.concurrent.TimeUnit
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -19,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -69,7 +75,7 @@ fun StudyScreen(
         }
     }
 
-    // --- Outer container: Pink background ---
+    // --- Outer container: Labyrinth on Pink background ---
     Box(modifier = Modifier.fillMaxSize().background(NeoBackgroundPink)) {
 
         // === Labyrinth pattern for FULL screen backdrop ===
@@ -98,7 +104,7 @@ fun StudyScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding() // Đẩy toàn bộ nội dung xuống dưới thanh trạng thái
+                .statusBarsPadding()
         ) {
             // --- Custom Top Bar ---
             Row(
@@ -278,7 +284,6 @@ private fun StudyMainContent(
             AnimatedContent(
                 targetState = currentIndex,
                 transitionSpec = {
-                    // Enter from side faster, but exit with only fade
                     (slideInHorizontally(animationSpec = tween(200)) { it } + fadeIn(animationSpec = tween(200)))
                         .togetherWith(fadeOut(animationSpec = tween(150)))
                 },
@@ -388,117 +393,135 @@ private fun CompletionScreen(
     onRestart: () -> Unit,
     onBack: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // --- Main Achievement Card ---
-        Box(modifier = Modifier.fillMaxWidth()) {
-            // Shadow for the card
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .offset(x = 10.dp, y = 10.dp)
-                    .background(NeoNavy, RoundedCornerShape(32.dp))
+    // Config for a single explosive burst from the top
+    val parties = remember {
+        listOf(
+            Party(
+                speed = 0f,
+                maxSpeed = 25f,
+                damping = 0.9f,
+                angle = 90, // Hướng thẳng xuống dưới
+                spread = 120, // Tỏa rộng ra 2 bên
+                colors = listOf(0xFFFF9BAA.toInt(), 0xFFB4D2FF.toInt(), 0xFF2D336B.toInt(), 0xFFFFFFFF.toInt()),
+                emitter = Emitter(duration = 500, TimeUnit.MILLISECONDS).max(200), // Nổ dồn dập 200 hạt trong 0.5 giây
+                position = Position.Relative(0.5, -0.05) // Ném từ ngay mép trên màn hình
             )
-            
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(32.dp),
-                color = NeoWhite,
-                border = BorderStroke(4.dp, NeoNavy)
-            ) {
-                Column(
-                    modifier = Modifier.padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+        )
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .offset(x = 10.dp, y = 10.dp)
+                        .background(NeoNavy, RoundedCornerShape(32.dp))
+                )
+                
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(32.dp),
+                    color = NeoWhite,
+                    border = BorderStroke(4.dp, NeoNavy)
                 ) {
-                    // Larger Badge Circle
-                    Surface(
-                        modifier = Modifier.size(120.dp),
-                        shape = CircleShape,
-                        color = NeoBackgroundBlue,
-                        border = BorderStroke(4.dp, NeoNavy)
+                    Column(
+                        modifier = Modifier.padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text("🏆", fontSize = 64.sp)
+                        Surface(
+                            modifier = Modifier.size(120.dp),
+                            shape = CircleShape,
+                            color = NeoBackgroundBlue,
+                            border = BorderStroke(4.dp, NeoNavy)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("🏆", fontSize = 64.sp)
+                            }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(24.dp))
 
-                    Text(
-                        text = "TUYỆT VỜI!",
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Black,
-                        color = NeoNavy,
-                        textAlign = TextAlign.Center
-                    )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    Text(
-                        text = "Bạn đã hoàn thành",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = NeoNavy.copy(alpha = 0.6f),
-                        textAlign = TextAlign.Center
-                    )
-                    
-                    Text(
-                        text = "$totalCards thẻ",
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Black,
-                        color = NeoNavy,
-                        textAlign = TextAlign.Center
-                    )
+                        Text(
+                            text = "TUYỆT VỜI!",
+                            style = MaterialTheme.typography.displaySmall,
+                            fontWeight = FontWeight.Black,
+                            color = NeoNavy,
+                            textAlign = TextAlign.Center
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Text(
+                            text = "Bạn đã hoàn thành",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = NeoNavy.copy(alpha = 0.6f),
+                            textAlign = TextAlign.Center
+                        )
+                        
+                        Text(
+                            text = "$totalCards thẻ",
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Black,
+                            color = NeoNavy,
+                            textAlign = TextAlign.Center
+                        )
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                        Spacer(modifier = Modifier.height(32.dp))
 
-                    // Buttons inside card area
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        // Restart Project Button
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .offset(x = 5.dp, y = 5.dp)
-                                    .background(NeoNavy, RoundedCornerShape(16.dp))
-                            )
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .offset(x = 5.dp, y = 5.dp)
+                                        .background(NeoNavy, RoundedCornerShape(16.dp))
+                                )
+                                Surface(
+                                    onClick = onRestart,
+                                    color = NeoBackgroundBlue,
+                                    shape = RoundedCornerShape(16.dp),
+                                    border = BorderStroke(3.dp, NeoNavy),
+                                    modifier = Modifier.fillMaxWidth().height(56.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Refresh, contentDescription = null, tint = NeoNavy)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("HỌC LẠI", fontSize = 16.sp, fontWeight = FontWeight.Black, color = NeoNavy)
+                                        }
+                                    }
+                                }
+                            }
+
                             Surface(
-                                onClick = onRestart,
-                                color = NeoBackgroundBlue,
+                                onClick = onBack,
+                                color = NeoWhite,
                                 shape = RoundedCornerShape(16.dp),
                                 border = BorderStroke(3.dp, NeoNavy),
                                 modifier = Modifier.fillMaxWidth().height(56.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Refresh, contentDescription = null, tint = NeoNavy)
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("HỌC LẠI", fontSize = 16.sp, fontWeight = FontWeight.Black, color = NeoNavy)
-                                    }
+                                    Text("VỀ TRANG CHỦ", fontSize = 16.sp, fontWeight = FontWeight.Black, color = NeoNavy)
                                 }
-                            }
-                        }
-
-                        // Home Button
-                        Surface(
-                            onClick = onBack,
-                            color = NeoWhite,
-                            shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(3.dp, NeoNavy),
-                            modifier = Modifier.fillMaxWidth().height(56.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text("VỀ TRANG CHỦ", fontSize = 16.sp, fontWeight = FontWeight.Black, color = NeoNavy)
                             }
                         }
                     }
                 }
             }
         }
+
+        // --- Confetti layer on TOP of everything (Proper Z-Order) ---
+        KonfettiView(
+            modifier = Modifier.fillMaxSize().zIndex(100f),
+            parties = parties,
+        )
     }
 }
 
