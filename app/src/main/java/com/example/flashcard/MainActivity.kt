@@ -1,10 +1,16 @@
 package com.example.flashcard
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
+import androidx.core.content.ContextCompat
+import com.example.flashcard.domain.worker.WorkManagerScheduler
 import com.example.flashcard.ui.screens.HomeScreen
 import com.example.flashcard.ui.screens.StudyScreen
 import com.example.flashcard.ui.theme.FlashcardTheme
@@ -17,8 +23,21 @@ sealed class Screen {
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            WorkManagerScheduler.scheduleDailyReminder(this)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        checkAndRequestNotificationPermission()
+        WorkManagerScheduler.scheduleDailyReminder(this)
+
         enableEdgeToEdge()
         setContent {
             FlashcardTheme {
@@ -39,6 +58,18 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+            }
+        }
+    }
+
+    private fun checkAndRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
     }
