@@ -27,8 +27,8 @@
 > **Mục tiêu:** Hoàn thành logic cốt lõi và hệ thống lưu trữ dữ liệu bền vững.
 
 #### 💾 Database (Room)
-- [ ] Thiết kế bảng `Flashcard` và `Deck`.
-- [ ] Đảm bảo hỗ trợ chế độ học **Offline-first**.
+- [x ] Thiết kế bảng `Flashcard` và `Deck`.
+- [x ] Đảm bảo hỗ trợ chế độ học **Offline-first**.
 
 #### ⚡ Thuật toán SM-2
 - [ ] Hiện thực hóa logic tính toán khoảng cách ngày ôn tập (Interval) dựa trên mức độ đánh giá của người dùng.
