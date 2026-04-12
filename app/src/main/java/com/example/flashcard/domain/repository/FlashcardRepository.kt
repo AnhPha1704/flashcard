@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 interface FlashcardRepository {
     // Deck operations
     fun getAllDecks(): Flow<List<Deck>>
+    fun getAllDecksWithCount(): Flow<List<com.example.flashcard.data.local.entity.DeckWithCount>>
     suspend fun getDeckById(id: Int): Deck?
     suspend fun insertDeck(deck: Deck): Long
     suspend fun updateDeck(deck: Deck): Int

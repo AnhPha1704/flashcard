@@ -17,6 +17,7 @@ class FlashcardRepositoryImpl @Inject constructor(
 
     // Deck operations
     override fun getAllDecks(): Flow<List<Deck>> = deckDao.getAllDecks()
+    override fun getAllDecksWithCount(): Flow<List<com.example.flashcard.data.local.entity.DeckWithCount>> = deckDao.getAllDecksWithCount()
 
     override suspend fun getDeckById(id: Int): Deck? = deckDao.getDeckById(id)
 

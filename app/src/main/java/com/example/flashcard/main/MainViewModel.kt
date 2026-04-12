@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.flashcard.data.local.entity.DeckWithCount
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
@@ -19,8 +20,8 @@ class MainViewModel @Inject constructor(
     private val connectivityObserver: ConnectivityObserver
 ) : ViewModel() {
 
-    // Quan sát danh sách bộ thẻ (Decks) từ Database
-    val decks: StateFlow<List<Deck>> = repository.getAllDecks()
+    // Quan sát danh sách bộ thẻ (Decks) cùng số lượng thẻ từ Database
+    val decks: StateFlow<List<DeckWithCount>> = repository.getAllDecksWithCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Quan sát trạng thái mạng

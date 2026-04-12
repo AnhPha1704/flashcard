@@ -27,6 +27,7 @@ import com.example.flashcard.ui.theme.AppGradients
 @Composable
 fun DeckCard(
     deck: Deck,
+    cardCount: Int,
     onClick: () -> Unit,
     onMoreClick: () -> Unit = {}
 ) {
@@ -105,7 +106,7 @@ fun DeckCard(
                         shape = MaterialTheme.shapes.medium
                     ) {
                         Text(
-                            text = "12 Thẻ",
+                            text = "$cardCount Thẻ",
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             style = MaterialTheme.typography.labelMedium,
                             color = Color.White,

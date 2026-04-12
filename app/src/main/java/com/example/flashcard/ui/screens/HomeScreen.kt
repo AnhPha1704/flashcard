@@ -149,11 +149,14 @@ fun HomeScreen(
                     
                     items(
                         items = decks,
-                        key = { it.id }
-                    ) { deck ->
+                        key = { it.deck.id }
+                    ) { deckWithCount ->
+                        val deck = deckWithCount.deck
+                        val count = deckWithCount.cardCount
                         Box {
                             DeckCard(
                                 deck = deck,
+                                cardCount = count,
                                 onClick = { onDeckClick(deck.id) },
                                 onMoreClick = { expandedDeckId = deck.id }
                             )
