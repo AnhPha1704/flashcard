@@ -44,10 +44,10 @@
 > [!TIP]
 > **Mục tiêu:** Tạo ứng dụng có giao diện hiện đại, mượt mà và trực quan.
 
-- [x ] **Màn hình chính:** Danh sách bộ thẻ (Deck) với hiệu ứng cuộn mượt mà bằng `LazyColumn`.
-- [ ] **Màn hình học tập:**
-    - [ x] Thiết kế hiệu ứng lật thẻ (**Card Flip Animation**) bằng Compose `graphicsLayer`.
-    - [ x] Áp dụng hệ thống màu sắc và font chữ theo chuẩn **Material Design 3**.
+- [x] **Màn hình chính:** Danh sách bộ thẻ (Deck) với hiệu ứng cuộn mượt mà bằng `LazyColumn`.
+- [x] **Màn hình học tập:**
+    - [x] Thiết kế hiệu ứng lật thẻ (**Card Flip Animation**) bằng Compose `graphicsLayer`.
+    - [x] Áp dụng hệ thống màu sắc và font chữ theo chuẩn **Material Design 3**.
 - [x] **Tương tác:** Tích hợp cử chỉ vuốt (**Swipe**) để đánh dấu trạng thái thuộc bài nhanh chóng.
 
 ---
@@ -56,7 +56,7 @@
 > [!WARNING]
 > **Mục tiêu:** Hoàn thiện các yêu cầu kỹ thuật đặc thù của đề tài.
 
-- [ ] **WorkManager:** Lên lịch thông báo (**Push Notification**) nhắc nhở việc học hàng ngày theo khung giờ vàng.
+- [x] **WorkManager:** Lên lịch thông báo (**Push Notification**) nhắc nhở việc học hàng ngày theo khung giờ vàng.
 - [ ] **Text-to-Speech (TTS):** Tích hợp Google TTS giúp người dùng phát âm từ vựng chuẩn xác.
 - [ ] **Cloud Sync:** Kết nối với Backend để đồng bộ hóa tiến độ học tập trên nhiều thiết bị.
 - [ ] **Error Handling:** Xử lý triệt để các trường hợp mất kết nối mạng hoặc lỗi API để ứng dụng luôn ổn định.
