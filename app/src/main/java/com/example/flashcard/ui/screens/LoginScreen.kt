@@ -45,7 +45,10 @@ fun LoginScreen(viewModel: AuthViewModel) {
 
         // Centered login card
         Box(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding() // Padding cho nội dung để không bị đè
+                .padding(horizontal = 28.dp),
             contentAlignment = Alignment.Center
         ) {
             Box { // Box to stack shadow behind Surface

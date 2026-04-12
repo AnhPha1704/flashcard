@@ -9,6 +9,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -82,6 +84,14 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             FlashcardTheme {
+                val view = LocalView.current
+                if (!view.isInEditMode) {
+                    SideEffect {
+                        val window = (view.context as ComponentActivity).window
+                        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
+                    }
+                }
+                
                 val currentUser by authViewModel.currentUser.collectAsState()
                 var currentScreen by remember { mutableStateOf<Screen>(Screen.Splash) }
                 var currentTab by remember { mutableStateOf(BottomTab.HOME) }
@@ -113,8 +123,10 @@ class MainActivity : ComponentActivity() {
                     }
 
                     is Screen.MainApp -> {
+                        val snackbarHostState = remember { SnackbarHostState() }
                         Scaffold(
                             containerColor = NeoBackgroundPink,
+                            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
                             bottomBar = {
                                 NeoBottomNavigationBar(
                                     selectedTab = currentTab,
@@ -122,7 +134,12 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                         ) { innerPadding ->
-                            Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+                            Column(
+                                modifier = Modifier
+                                    .padding(innerPadding)
+                                    .fillMaxSize()
+                                    .statusBarsPadding() // Chỉ đẩy nội dung bên trong
+                            ) {
                                 AnimatedContent(
                                     targetState = currentTab,
                                     transitionSpec = {

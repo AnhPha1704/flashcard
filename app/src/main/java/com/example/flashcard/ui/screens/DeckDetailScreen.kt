@@ -79,7 +79,11 @@ fun DeckDetailScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding() // Padding nội dung bên dưới thanh trạng thái
+            ) {
                 // --- Custom Header ---
                 Row(
                     modifier = Modifier

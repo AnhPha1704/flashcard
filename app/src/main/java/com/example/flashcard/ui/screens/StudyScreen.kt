@@ -85,7 +85,11 @@ fun StudyScreen(
         )
 
         // === Main content scaffold on top ===
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding() // Đẩy toàn bộ nội dung xuống dưới thanh trạng thái
+        ) {
             // --- Custom Top Bar ---
             Row(
                 modifier = Modifier
