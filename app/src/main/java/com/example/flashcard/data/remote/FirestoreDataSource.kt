@@ -1,12 +1,11 @@
 package com.example.flashcard.data.remote
 
 import android.annotation.SuppressLint
-import android.content.Context
-import android.provider.Settings
+import com.google.firebase.auth.FirebaseAuth
 import com.example.flashcard.data.local.entity.Deck
 import com.example.flashcard.data.local.entity.Flashcard
 import com.google.firebase.firestore.FirebaseFirestore
-import dagger.hilt.android.qualifiers.ApplicationContext
+import com.google.firebase.firestore.DocumentReference
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,15 +13,13 @@ import javax.inject.Singleton
 @Singleton
 class FirestoreDataSource @Inject constructor(
     private val firestore: FirebaseFirestore,
-    @ApplicationContext private val context: Context
+    private val firebaseAuth: FirebaseAuth
 ) {
-    @SuppressLint("HardwareIds")
-    private val deviceId = Settings.Secure.getString(
-        context.contentResolver,
-        Settings.Secure.ANDROID_ID
-    ) ?: "unknown_device"
-
-    private val userDoc = firestore.collection("users").document(deviceId)
+    private val userDoc: DocumentReference
+        get() {
+            val uid = firebaseAuth.currentUser?.uid ?: throw IllegalStateException("User not logged in")
+            return firestore.collection("users").document(uid)
+        }
 
     suspend fun syncDeck(deck: Deck) {
         userDoc.collection("decks")

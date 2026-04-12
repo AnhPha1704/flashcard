@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -44,6 +45,7 @@ import com.example.flashcard.ui.theme.*
 fun HomeScreen(
     modifier: Modifier = Modifier,
     onDeckClick: (Int) -> Unit = {},
+    onLogoutClick: () -> Unit = {},
     viewModel: MainViewModel = viewModel()
 ) {
     val decks by viewModel.decks.collectAsState()
@@ -100,6 +102,11 @@ fun HomeScreen(
                                 )
                             }
                         }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onLogoutClick) {
+                        Icon(Icons.Default.Logout, contentDescription = "Đăng xuất")
                     }
                 },
                 scrollBehavior = scrollBehavior,
