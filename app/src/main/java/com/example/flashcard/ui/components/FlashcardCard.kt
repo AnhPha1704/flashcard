@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.flashcard.data.local.entity.Flashcard
 import com.example.flashcard.ui.theme.*
+import androidx.compose.foundation.BorderStroke
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -95,29 +96,31 @@ fun FlashcardCard(
                 cameraDistance = 16f * density
             }
     ) {
-        Card(
+        // Neo-Brutalism Shadow
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .offset(x = 8.dp, y = 8.dp)
+                .background(NeoNavy, RoundedCornerShape(12.dp))
+        )
+        
+        Surface(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
                     rotationY = rotation
                 }
                 .clickable { if (abs(offsetX.value) < 10f) onFlip() }, // Chỉ flip nếu không đang swipe
-            shape = MaterialTheme.shapes.extraLarge,
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = if (isFlipped) 2.dp else 16.dp
-            ),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+            shape = RoundedCornerShape(12.dp),
+            color = NeoWhite,
+            border = BorderStroke(3.dp, NeoNavy)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 if (rotation <= 90f) {
                     // Mặt trước (Front)
                     FlashcardSide(
                         text = flashcard.front,
-                        label = "CÂU HỎI",
-                        gradientColors = listOf(OceanStart, OceanEnd),
-                        textColor = MaterialTheme.colorScheme.onSurface,
+                        label = "question",
                         onSpeak = { onSpeak(flashcard.front) }
                     )
                 } else {
@@ -128,9 +131,7 @@ fun FlashcardCard(
                     ) {
                         FlashcardSide(
                             text = flashcard.back,
-                            label = "ĐÁP ÁN",
-                            gradientColors = listOf(SunsetStart, SunsetEnd),
-                            textColor = MaterialTheme.colorScheme.onSurface,
+                            label = "answer",
                             onSpeak = { onSpeak(flashcard.back) }
                         )
                     }
@@ -179,9 +180,9 @@ private fun SwipeIndicator(
             Text(
                 text = text,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Black,
-                color = color.copy(alpha = alpha)
+                color = color
             )
         }
     }
@@ -191,91 +192,79 @@ private fun SwipeIndicator(
 private fun FlashcardSide(
     text: String,
     label: String,
-    gradientColors: List<Color>,
-    textColor: Color,
     onSpeak: () -> Unit
 ) {
-    val mainGradient = Brush.horizontalGradient(gradientColors)
-    val faintGradient = Brush.horizontalGradient(gradientColors.map { it.copy(alpha = 0.05f) })
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Top Decoration Strip
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(12.dp)
-                .background(mainGradient)
-        )
-        
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+    ) {
+        // Top Header Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Label Header
+            // Pill Label
             Surface(
-                color = Color.Transparent,
-                border = androidx.compose.foundation.BorderStroke(1.dp, mainGradient),
-                shape = MaterialTheme.shapes.medium
+                color = NeoWhite,
+                shape = RoundedCornerShape(50),
+                border = BorderStroke(2.dp, NeoNavy)
             ) {
-                Box(modifier = Modifier.background(faintGradient)) {
-                    Text(
-                        text = label,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 2.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
+                Text(
+                    text = label,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Black,
+                    color = NeoNavy
+                )
             }
+            
+            Text(
+                text = "Tap to flip",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Black,
+                color = NeoNavy
+            )
+        }
+        
+        Spacer(modifier = Modifier.weight(1f))
 
+        // Center Content
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             IconButton(
                 onClick = onSpeak,
                 modifier = Modifier
-                    .padding(top = 16.dp)
-                    .size(48.dp)
+                    .size(56.dp)
+                    .background(NeoBackgroundBlue, CircleShape)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
             ) {
                 Icon(
                     imageVector = Icons.Default.VolumeUp,
                     contentDescription = "Phát âm",
-                    tint = gradientColors[0]
+                    tint = NeoNavy,
+                    modifier = Modifier.size(32.dp)
                 )
             }
             
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
             Text(
                 text = text,
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Black,
                 textAlign = TextAlign.Center,
-                color = textColor,
-                modifier = Modifier.weight(1f, fill = false)
+                color = NeoNavy
             )
-            
-            Spacer(modifier = Modifier.height(60.dp))
-            
-            // Interaction Instruction
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .clip(MaterialTheme.shapes.extraLarge)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = "Chạm để lật thẻ",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
         }
+        
+        Spacer(modifier = Modifier.weight(1f))
+        
+        // Footer layout block to balance top header
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 

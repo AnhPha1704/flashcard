@@ -1,64 +1,64 @@
 package com.example.flashcard.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.flashcard.data.local.entity.Deck
-import com.example.flashcard.ui.theme.AppGradients
+import com.example.flashcard.ui.theme.NeoNavy
+import com.example.flashcard.ui.theme.NeoWhite
 
-/**
- * DeckCard thiết kế hiện đại, sử dụng Gradient sinh động để thu hút người dùng.
- */
 @Composable
 fun DeckCard(
     deck: Deck,
     cardCount: Int,
     onClick: () -> Unit,
-    onMoreClick: () -> Unit = {}
+    onEdit: () -> Unit = {},
+    onDelete: () -> Unit = {}
 ) {
-    // Chọn gradient dựa trên ID của bộ thẻ
-    val gradientColors = AppGradients[deck.id % AppGradients.size]
-    val brush = Brush.linearGradient(colors = gradientColors)
+    val cardShape = RoundedCornerShape(12.dp)
+    var showMenu by remember { mutableStateOf(false) }
 
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = 8.dp,
-                shape = MaterialTheme.shapes.extraLarge,
-                ambientColor = gradientColors[0].copy(alpha = 0.5f),
-                spotColor = gradientColors[0]
-            )
-            .clip(MaterialTheme.shapes.extraLarge)
-            .clickable { onClick() },
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            .padding(bottom = 6.dp, end = 4.dp) // Space for shadow
     ) {
+        // Neo-Brutalism Shadow
         Box(
             modifier = Modifier
-                .background(brush)
-                .padding(24.dp)
+                .matchParentSize()
+                .offset(x = 6.dp, y = 6.dp)
+                .background(NeoNavy, cardShape)
+                .clip(cardShape)
+        )
+
+        // Main Card
+        Surface(
+            modifier = Modifier
                 .fillMaxWidth()
+                .clickable { onClick() },
+            shape = cardShape,
+            color = NeoWhite,
+            border = BorderStroke(3.dp, NeoNavy)
         ) {
-            Column {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .fillMaxWidth()
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -67,77 +67,89 @@ fun DeckCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = deck.name,
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = Color.White
+                            style = MaterialTheme.typography.titleLarge,
+                            color = NeoNavy,
+                            fontWeight = FontWeight.Black
                         )
+                        
                         deck.description?.let {
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = it,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White.copy(alpha = 0.8f),
+                                color = NeoNavy.copy(alpha = 0.8f),
                                 maxLines = 2
                             )
                         }
                     }
-                    
-                    IconButton(
-                        onClick = onMoreClick,
-                        modifier = Modifier.background(Color.White.copy(alpha = 0.2f), MaterialTheme.shapes.small)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Thêm",
-                            tint = Color.White
-                        )
+
+                    // More actions button with anchored DropdownMenu
+                    Box {
+                        IconButton(
+                            onClick = { showMenu = true },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Default.MoreVert,
+                                contentDescription = "Thêm",
+                                tint = NeoNavy
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Chỉnh sửa", fontWeight = FontWeight.Bold) },
+                                leadingIcon = { Icon(androidx.compose.material.icons.Icons.Default.Edit, contentDescription = null) },
+                                onClick = {
+                                    showMenu = false
+                                    onEdit()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Xóa bộ thẻ", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) },
+                                leadingIcon = {
+                                    Icon(
+                                        androidx.compose.material.icons.Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    onDelete()
+                                }
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Footer với thông tin bổ sung và Nút bắt đầu nhanh
+                // Tags
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Badge số lượng thẻ
                     Surface(
-                        color = Color.White.copy(alpha = 0.2f),
-                        shape = MaterialTheme.shapes.medium
+                        color = NeoWhite,
+                        shape = RoundedCornerShape(50),
+                        border = BorderStroke(2.dp, NeoNavy)
                     ) {
                         Text(
-                            text = "$cardCount Thẻ",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            text = "$cardCount cards",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             style = MaterialTheme.typography.labelMedium,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Button(
-                        onClick = onClick,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = gradientColors[0]
-                        ),
-                        shape = MaterialTheme.shapes.medium,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Học ngay", 
-                            style = MaterialTheme.typography.labelLarge
+                            color = NeoNavy,
+                            fontWeight = FontWeight.Black
                         )
                     }
                 }
             }
         }
     }
-
 }
+
