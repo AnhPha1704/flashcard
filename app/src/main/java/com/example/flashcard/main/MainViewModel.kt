@@ -9,6 +9,9 @@ import com.example.flashcard.domain.util.ConnectivityObserver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -20,9 +23,23 @@ class MainViewModel @Inject constructor(
     private val connectivityObserver: ConnectivityObserver
 ) : ViewModel() {
 
-    // Quan sát danh sách bộ thẻ (Decks) cùng số lượng thẻ từ Database
-    val decks: StateFlow<List<DeckWithCount>> = repository.getAllDecksWithCount()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
+
+    // Quan sát danh sách bộ thẻ (Decks) cùng số lượng thẻ từ Database và lọc theo search query
+    val decks: StateFlow<List<DeckWithCount>> = combine(
+        repository.getAllDecksWithCount(),
+        _searchQuery
+    ) { deckList, query ->
+        if (query.isBlank()) {
+            deckList
+        } else {
+            deckList.filter { 
+                it.deck.name.contains(query, ignoreCase = true) || 
+                (it.deck.description?.contains(query, ignoreCase = true) == true) 
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Quan sát trạng thái mạng
     val networkStatus: StateFlow<ConnectivityObserver.Status> = connectivityObserver.observe()
@@ -64,5 +81,9 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             repository.deleteDeck(deck)
         }
+    }
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
     }
 }
