@@ -31,8 +31,8 @@
 - [x ] Đảm bảo hỗ trợ chế độ học **Offline-first**.
 
 #### ⚡ Thuật toán SM-2
-- [ ] Hiện thực hóa logic tính toán khoảng cách ngày ôn tập (Interval) dựa trên mức độ đánh giá của người dùng.
-- [ ] **Unit Test:** Viết test suite cho class SM-2 để đảm bảo các trường hợp "Dễ", "Trung bình", "Khó" tính toán chính xác ngày tái hiện.
+- [x] Hiện thực hóa logic tính toán khoảng cách ngày ôn tập (Interval) dựa trên mức độ đánh giá của người dùng.
+- [x] **Unit Test:** Viết test suite cho class SM-2 để đảm bảo các trường hợp "Dễ", "Trung bình", "Khó" tính toán chính xác ngày tái hiện.
 
 #### 🔄 Quy trình Git
 - [ ] Mỗi tính năng phải được phát triển trên nhánh riêng: `feature/[tên-tính-năng]-[tên-thành-viên]`.
