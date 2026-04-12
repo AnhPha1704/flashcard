@@ -31,23 +31,22 @@ fun LoginScreen(viewModel: AuthViewModel) {
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
-    // --- Full-screen labyrinth backdrop ---
-    Box(modifier = Modifier.fillMaxSize()) {
+    // --- Full-screen backdrop (kể cả status bar) ---
+    Box(modifier = Modifier.fillMaxSize().background(NeoBackgroundPink)) {
+        // Labyrinth phủ toàn màn hình, kể cả vùng safe area
         Image(
             painter = painterResource(id = R.drawable.labyrinth),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
+            alpha = 0.15f
         )
 
-        // Scrim so content is readable
-        Box(modifier = Modifier.fillMaxSize().background(NeoNavy.copy(alpha = 0.35f)))
-
-        // Centered login card
+        // Nội dung bên trong mới bị đẩy xuống dưới status bar
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding() // Padding cho nội dung để không bị đè
+                .statusBarsPadding()
                 .padding(horizontal = 28.dp),
             contentAlignment = Alignment.Center
         ) {

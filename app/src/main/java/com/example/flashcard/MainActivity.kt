@@ -134,11 +134,12 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                         ) { innerPadding ->
-                            Column(
+                            // Root Box covers full screen with pink, while content respects insets
+                            Box(
                                 modifier = Modifier
                                     .padding(innerPadding)
                                     .fillMaxSize()
-                                    .statusBarsPadding() // Chỉ đẩy nội dung bên trong
+                                    .statusBarsPadding()
                             ) {
                                 AnimatedContent(
                                     targetState = currentTab,

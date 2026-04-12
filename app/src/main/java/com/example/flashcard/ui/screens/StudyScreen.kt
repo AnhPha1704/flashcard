@@ -72,17 +72,27 @@ fun StudyScreen(
     // --- Outer container: Pink background ---
     Box(modifier = Modifier.fillMaxSize().background(NeoBackgroundPink)) {
 
-        // === Labyrinth strip TOP ===
+        // === Labyrinth pattern for FULL screen backdrop ===
         Image(
             painter = painterResource(id = R.drawable.labyrinth),
             contentDescription = null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(160.dp)
-                .align(Alignment.TopCenter),
+            modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
             alpha = 0.2f
         )
+
+        // === Rounded Pink Bottom Shelf (Only visible during study) ===
+        if (!isCompleted) {
+            Surface(
+                color = NeoBackgroundPink,
+                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                border = BorderStroke(3.dp, NeoNavy),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.18f)
+                    .align(Alignment.BottomCenter)
+            ) {}
+        }
 
         // === Main content scaffold on top ===
         Column(
@@ -381,83 +391,111 @@ private fun CompletionScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
-            .background(Color.Transparent),
+            .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box {
+        // --- Main Achievement Card ---
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // Shadow for the card
             Box(
                 modifier = Modifier
-                    .size(140.dp)
-                    .offset(x = 8.dp, y = 8.dp)
+                    .matchParentSize()
+                    .offset(x = 10.dp, y = 10.dp)
                     .background(NeoNavy, RoundedCornerShape(32.dp))
             )
+            
             Surface(
-                modifier = Modifier.size(140.dp),
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(32.dp),
-                color = NeoBackgroundBlue,
+                color = NeoWhite,
                 border = BorderStroke(4.dp, NeoNavy)
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text("🏆", fontSize = 72.sp)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Text(
-            text = "TUYỆT VỜI!",
-            style = MaterialTheme.typography.displayMedium,
-            fontWeight = FontWeight.Black,
-            color = NeoNavy
-        )
-        Text(
-            text = "Bạn đã hoàn thành $totalCards thẻ.",
-            style = MaterialTheme.typography.titleLarge,
-            textAlign = TextAlign.Center,
-            color = NeoNavy,
-            modifier = Modifier.padding(top = 8.dp)
-        )
-
-        Spacer(modifier = Modifier.height(64.dp))
-
-        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            Box {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .offset(x = 6.dp, y = 6.dp)
-                        .background(NeoNavy, RoundedCornerShape(16.dp))
-                )
-                Surface(
-                    onClick = onRestart,
-                    color = NeoBackgroundBlue,
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(3.dp, NeoNavy),
-                    modifier = Modifier.fillMaxWidth().height(64.dp)
+                Column(
+                    modifier = Modifier.padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, tint = NeoNavy, modifier = Modifier.size(28.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("HỌC LẠI TỪ ĐẦU", fontSize = 18.sp, fontWeight = FontWeight.Black, color = NeoNavy)
+                    // Larger Badge Circle
+                    Surface(
+                        modifier = Modifier.size(120.dp),
+                        shape = CircleShape,
+                        color = NeoBackgroundBlue,
+                        border = BorderStroke(4.dp, NeoNavy)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("🏆", fontSize = 64.sp)
                         }
                     }
-                }
-            }
 
-            Surface(
-                onClick = onBack,
-                color = NeoWhite,
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(3.dp, NeoNavy),
-                modifier = Modifier.fillMaxWidth().height(64.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text("VỀ MÀN HÌNH CHÍNH", fontSize = 18.sp, fontWeight = FontWeight.Black, color = NeoNavy)
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Text(
+                        text = "TUYỆT VỜI!",
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Black,
+                        color = NeoNavy,
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = "Bạn đã hoàn thành",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = NeoNavy.copy(alpha = 0.6f),
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    Text(
+                        text = "$totalCards thẻ",
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Black,
+                        color = NeoNavy,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // Buttons inside card area
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        // Restart Project Button
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .offset(x = 5.dp, y = 5.dp)
+                                    .background(NeoNavy, RoundedCornerShape(16.dp))
+                            )
+                            Surface(
+                                onClick = onRestart,
+                                color = NeoBackgroundBlue,
+                                shape = RoundedCornerShape(16.dp),
+                                border = BorderStroke(3.dp, NeoNavy),
+                                modifier = Modifier.fillMaxWidth().height(56.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Refresh, contentDescription = null, tint = NeoNavy)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("HỌC LẠI", fontSize = 16.sp, fontWeight = FontWeight.Black, color = NeoNavy)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Home Button
+                        Surface(
+                            onClick = onBack,
+                            color = NeoWhite,
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(3.dp, NeoNavy),
+                            modifier = Modifier.fillMaxWidth().height(56.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("VỀ TRANG CHỦ", fontSize = 16.sp, fontWeight = FontWeight.Black, color = NeoNavy)
+                            }
+                        }
+                    }
                 }
             }
         }

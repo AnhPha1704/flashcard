@@ -25,13 +25,14 @@ fun SplashScreen(onComplete: () -> Unit) {
         onComplete()
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Labyrinth background
+    Box(modifier = Modifier.fillMaxSize().background(NeoBackgroundPink)) {
+        // Subtle Labyrinth texture for premium feel
         Image(
             painter = painterResource(id = R.drawable.labyrinth),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
+            alpha = 0.15f
         )
 
         // Center FLIP logo card
