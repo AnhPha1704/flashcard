@@ -44,10 +44,10 @@
 > [!TIP]
 > **Mục tiêu:** Tạo ứng dụng có giao diện hiện đại, mượt mà và trực quan.
 
-- [ ] **Màn hình chính:** Danh sách bộ thẻ (Deck) với hiệu ứng cuộn mượt mà bằng `LazyColumn`.
+- [x ] **Màn hình chính:** Danh sách bộ thẻ (Deck) với hiệu ứng cuộn mượt mà bằng `LazyColumn`.
 - [ ] **Màn hình học tập:**
-    - [ ] Thiết kế hiệu ứng lật thẻ (**Card Flip Animation**) bằng Compose `graphicsLayer`.
-    - [ ] Áp dụng hệ thống màu sắc và font chữ theo chuẩn **Material Design 3**.
+    - [ x] Thiết kế hiệu ứng lật thẻ (**Card Flip Animation**) bằng Compose `graphicsLayer`.
+    - [ x] Áp dụng hệ thống màu sắc và font chữ theo chuẩn **Material Design 3**.
 - [ ] **Tương tác:** Tích hợp cử chỉ vuốt (**Swipe**) để đánh dấu trạng thái thuộc bài nhanh chóng.
 
 ---

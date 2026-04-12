@@ -2,6 +2,7 @@ package com.example.flashcard.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,6 +10,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -16,11 +19,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.flashcard.data.local.entity.Flashcard
+import com.example.flashcard.ui.theme.*
 
-/**
- * FlashcardCard hỗ trợ hiệu ứng lật 3D chuyên nghiệp.
- * Sử dụng rotationY và cameraDistance để tạo độ sâu.
- */
 @Composable
 fun FlashcardCard(
     flashcard: Flashcard,
@@ -28,7 +28,6 @@ fun FlashcardCard(
     onFlip: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Animation cho góc xoay
     val rotation by animateFloatAsState(
         targetValue = if (isFlipped) 180f else 0f,
         animationSpec = tween(durationMillis = 600),
@@ -38,35 +37,31 @@ fun FlashcardCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(450.dp)
+            .height(480.dp)
             .graphicsLayer {
                 rotationY = rotation
-                cameraDistance = 12f * density // Tăng độ sâu cho hiệu ứng 3D
+                cameraDistance = 16f * density 
             }
             .clickable { onFlip() },
-        shape = RoundedCornerShape(32.dp),
+        shape = MaterialTheme.shapes.extraLarge,
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isFlipped) 4.dp else 12.dp
+            defaultElevation = if (isFlipped) 2.dp else 16.dp
         ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            // Kiểm tra góc xoay để quyết định hiển thị mặt nào
+        Box(modifier = Modifier.fillMaxSize()) {
             if (rotation <= 90f) {
                 // Mặt trước (Front)
                 FlashcardSide(
                     text = flashcard.front,
                     label = "CÂU HỎI",
-                    color = MaterialTheme.colorScheme.primary
+                    gradientColors = listOf(OceanStart, OceanEnd),
+                    textColor = MaterialTheme.colorScheme.onSurface
                 )
             } else {
                 // Mặt sau (Back)
-                // Phải xoay ngược lại 180 độ để nội dung không bị đối xứng (ngược chữ)
                 Box(
                     modifier = Modifier.graphicsLayer { rotationY = 180f },
                     contentAlignment = Alignment.Center
@@ -74,7 +69,8 @@ fun FlashcardCard(
                     FlashcardSide(
                         text = flashcard.back,
                         label = "ĐÁP ÁN",
-                        color = MaterialTheme.colorScheme.secondary
+                        gradientColors = listOf(SunsetStart, SunsetEnd),
+                        textColor = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -86,50 +82,76 @@ fun FlashcardCard(
 private fun FlashcardSide(
     text: String,
     label: String,
-    color: Color
+    gradientColors: List<Color>,
+    textColor: Color
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Label chỉ dẫn (CÂU HỎI / ĐÁP ÁN)
-        Surface(
-            color = color.copy(alpha = 0.1f),
-            shape = RoundedCornerShape(12.dp)
+    val mainGradient = Brush.horizontalGradient(gradientColors)
+    val faintGradient = Brush.horizontalGradient(gradientColors.map { it.copy(alpha = 0.05f) })
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Top Decoration Strip
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(12.dp)
+                .background(mainGradient)
+        )
+        
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
+            // Label Header
+            Surface(
+                color = Color.Transparent,
+                border = androidx.compose.foundation.BorderStroke(1.dp, mainGradient),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Box(modifier = Modifier.background(faintGradient)) {
+                    Text(
+                        text = label,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 2.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(60.dp))
+            
             Text(
-                text = label,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                style = MaterialTheme.typography.labelMedium,
-                color = color,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.2.sp
+                text = text,
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center,
+                color = textColor,
+                modifier = Modifier.weight(1f, fill = false)
             )
+            
+            Spacer(modifier = Modifier.height(60.dp))
+            
+            // Interaction Instruction
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .clip(MaterialTheme.shapes.extraLarge)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "Chạm để lật thẻ",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
-        
-        Spacer(modifier = Modifier.height(40.dp))
-        
-        // Nội dung chính
-        Text(
-            text = text,
-            style = MaterialTheme.typography.headlineMedium.copy(
-                lineHeight = 38.sp,
-                fontWeight = FontWeight.SemiBold
-            ),
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        
-        Spacer(modifier = Modifier.height(40.dp))
-        
-        // Chỉ dẫn nhẹ nhàng ở cuối
-        Text(
-            text = "Chạm để lật thẻ",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-        )
     }
 }
+
+
