@@ -3,6 +3,7 @@ package com.example.flashcard.main
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flashcard.data.local.entity.Deck
+import com.example.flashcard.data.local.entity.Flashcard
 import com.example.flashcard.domain.repository.FlashcardRepository
 import com.example.flashcard.domain.util.ConnectivityObserver
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,14 +27,24 @@ class MainViewModel @Inject constructor(
     val networkStatus: StateFlow<ConnectivityObserver.Status> = connectivityObserver.observe()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ConnectivityObserver.Status.Unavailable)
 
-    // Hàm thêm dữ liệu mẫu
+    // Hàm thêm dữ liệu mẫu (Gồm Deck và Flashcards)
     fun addDemoDeck() {
         viewModelScope.launch {
-            val newDeck = Deck(
-                name = "Bộ thẻ Demo ${System.currentTimeMillis() % 1000}",
-                description = "Tạo lúc ${System.currentTimeMillis()}"
+            val deckId = repository.insertDeck(
+                Deck(
+                    name = "Tiếng Anh IT ${System.currentTimeMillis() % 100}",
+                    description = "Từ vựng lập trình viên cần biết"
+                )
+            ).toInt()
+
+            val demoCards = listOf(
+                Flashcard(deckId = deckId, front = "Mutable", back = "Có thể thay đổi (giá trị hoặc trạng thái)"),
+                Flashcard(deckId = deckId, front = "Immutable", back = "Bất biến, không thể thay đổi sau khi tạo"),
+                Flashcard(deckId = deckId, front = "Asynchronous", back = "Bất đồng bộ - xử lý không theo tuần tự thời gian"),
+                Flashcard(deckId = deckId, front = "Middleware", back = "Phần mềm trung gian kết nối các thành phần hệ thống")
             )
-            repository.insertDeck(newDeck)
+
+            demoCards.forEach { repository.insertFlashcard(it) }
         }
     }
 }

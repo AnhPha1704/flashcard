@@ -29,6 +29,7 @@ import com.example.flashcard.ui.components.EmptyState
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
+    onDeckClick: (Int) -> Unit = {},
     viewModel: MainViewModel = viewModel()
 ) {
     val decks by viewModel.decks.collectAsState()
@@ -115,11 +116,7 @@ fun HomeScreen(
                     ) { deck ->
                         DeckCard(
                             deck = deck,
-                            onClick = { 
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Đang mở bộ thẻ: ${deck.name}")
-                                }
-                            },
+                            onClick = { onDeckClick(deck.id) },
                             onMoreClick = {
                                 scope.launch {
                                     snackbarHostState.showSnackbar("Tính năng chỉnh sửa sẽ sớm ra mắt!")
