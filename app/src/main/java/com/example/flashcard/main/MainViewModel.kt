@@ -17,6 +17,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.example.flashcard.data.local.entity.DeckWithCount
 
+enum class SortType {
+    NAME_ASC, NAME_DESC, DATE_NEWEST, DATE_OLDEST
+}
+
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val repository: FlashcardRepository,
@@ -26,18 +30,29 @@ class MainViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
 
-    // Quan sát danh sách bộ thẻ (Decks) cùng số lượng thẻ từ Database và lọc theo search query
+    private val _sortType = MutableStateFlow(SortType.DATE_NEWEST)
+    val sortType = _sortType.asStateFlow()
+
+    // Quan sát danh sách bộ thẻ (Decks) cùng số lượng thẻ từ Database và lọc theo search query & sort type
     val decks: StateFlow<List<DeckWithCount>> = combine(
         repository.getAllDecksWithCount(),
-        _searchQuery
-    ) { deckList, query ->
-        if (query.isBlank()) {
+        _searchQuery,
+        _sortType
+    ) { deckList, query, sortOrder ->
+        val filteredList = if (query.isBlank()) {
             deckList
         } else {
             deckList.filter { 
                 it.deck.name.contains(query, ignoreCase = true) || 
                 (it.deck.description?.contains(query, ignoreCase = true) == true) 
             }
+        }
+        
+        when (sortOrder) {
+            SortType.NAME_ASC -> filteredList.sortedBy { it.deck.name.lowercase() }
+            SortType.NAME_DESC -> filteredList.sortedByDescending { it.deck.name.lowercase() }
+            SortType.DATE_NEWEST -> filteredList.sortedByDescending { it.deck.createdAt }
+            SortType.DATE_OLDEST -> filteredList.sortedBy { it.deck.createdAt }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -85,5 +100,9 @@ class MainViewModel @Inject constructor(
 
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
+    }
+
+    fun updateSortType(type: SortType) {
+        _sortType.value = type
     }
 }

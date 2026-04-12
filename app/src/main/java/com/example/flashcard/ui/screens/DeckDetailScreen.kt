@@ -1,5 +1,7 @@
 package com.example.flashcard.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,8 +12,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.net.Uri
+import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flashcard.data.local.entity.Flashcard
 import com.example.flashcard.ui.components.AddEditFlashcardDialog
@@ -31,11 +36,37 @@ fun DeckDetailScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var flashcardToEdit by remember { mutableStateOf<Flashcard?>(null) }
     
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showMenu by remember { mutableStateOf(false) }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.importCsv(it, context) { success, msg ->
+                scope.launch { snackbarHostState.showSnackbar(msg) }
+            }
+        }
+    }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.exportCsv(it, context) { success, msg ->
+                scope.launch { snackbarHostState.showSnackbar(msg) }
+            }
+        }
+    }
+
     LaunchedEffect(deckId) {
         viewModel.loadDeck(deckId)
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(deck?.name ?: "Chi tiết bộ thẻ") },
@@ -53,6 +84,34 @@ fun DeckDetailScreen(
                             Icon(Icons.Default.PlayArrow, contentDescription = null)
                             Spacer(Modifier.width(4.dp))
                             Text("Học ngay")
+                        }
+                    }
+                    
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Nhập từ CSV") },
+                                leadingIcon = { Icon(Icons.Default.UploadFile, contentDescription = null) },
+                                onClick = { 
+                                    showMenu = false
+                                    importLauncher.launch("*/*")
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Xuất ra CSV") },
+                                leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) },
+                                onClick = { 
+                                    showMenu = false
+                                    val deckName = deck?.name ?: "flashcards"
+                                    exportLauncher.launch("$deckName.csv") 
+                                }
+                            )
                         }
                     }
                 }
