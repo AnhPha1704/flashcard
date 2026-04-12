@@ -20,13 +20,15 @@ import androidx.room.PrimaryKey
 data class Flashcard(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    val deckId: Int,
-    val front: String,
-    val back: String,
+    val deckId: Int = 0,
+    val front: String = "",
+    val back: String = "",
     // SM-2 fields
     val interval: Int = 0,
     val easiness: Float = 2.5f,
     val repetitions: Int = 0,
     val nextReview: Long = System.currentTimeMillis(),
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val lastModified: Long = System.currentTimeMillis(),
+    val isSynced: Boolean = false
 )

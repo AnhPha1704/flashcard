@@ -19,4 +19,5 @@ interface FlashcardRepository {
     suspend fun updateFlashcard(flashcard: Flashcard): Int
     suspend fun deleteFlashcard(flashcard: Flashcard): Int
     fun getCardsToReview(deckId: Int, currentTime: Long): Flow<List<Flashcard>>
+    suspend fun syncAllData()
 }

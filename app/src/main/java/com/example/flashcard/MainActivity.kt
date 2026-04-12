@@ -9,12 +9,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
+import com.example.flashcard.domain.repository.FlashcardRepository
 import androidx.core.content.ContextCompat
 import com.example.flashcard.domain.worker.WorkManagerScheduler
 import com.example.flashcard.ui.screens.HomeScreen
 import com.example.flashcard.ui.screens.StudyScreen
 import com.example.flashcard.ui.theme.FlashcardTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 sealed class Screen {
     object Home : Screen()
@@ -24,6 +26,8 @@ sealed class Screen {
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    @Inject
+    lateinit var repository: FlashcardRepository
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -41,6 +45,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FlashcardTheme {
+                // Kích thực đồng bộ toàn diện khi mở App
+                LaunchedEffect(Unit) {
+                    repository.syncAllData()
+                }
+                
                 var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
 
                 when (val screen = currentScreen) {
