@@ -7,11 +7,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import com.example.flashcard.ui.screens.HomeScreen
 import com.example.flashcard.ui.screens.StudyScreen
+import com.example.flashcard.ui.screens.DeckDetailScreen
 import com.example.flashcard.ui.theme.FlashcardTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 sealed class Screen {
     object Home : Screen()
+    data class DeckDetail(val deckId: Int) : Screen()
     data class Study(val deckId: Int) : Screen()
 }
 
@@ -28,6 +30,15 @@ class MainActivity : ComponentActivity() {
                     is Screen.Home -> {
                         HomeScreen(
                             onDeckClick = { deckId ->
+                                currentScreen = Screen.DeckDetail(deckId)
+                            }
+                        )
+                    }
+                    is Screen.DeckDetail -> {
+                        DeckDetailScreen(
+                            deckId = screen.deckId,
+                            onBack = { currentScreen = Screen.Home },
+                            onStudyClick = { deckId ->
                                 currentScreen = Screen.Study(deckId)
                             }
                         )
@@ -35,7 +46,7 @@ class MainActivity : ComponentActivity() {
                     is Screen.Study -> {
                         StudyScreen(
                             deckId = screen.deckId,
-                            onBack = { currentScreen = Screen.Home }
+                            onBack = { currentScreen = Screen.DeckDetail(screen.deckId) }
                         )
                     }
                 }

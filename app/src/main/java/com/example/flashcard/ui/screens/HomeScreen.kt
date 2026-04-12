@@ -13,6 +13,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,8 +28,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flashcard.domain.util.ConnectivityObserver
 import com.example.flashcard.main.MainViewModel
+import com.example.flashcard.ui.components.AddEditDeckDialog
 import com.example.flashcard.ui.components.DeckCard
 import com.example.flashcard.ui.components.EmptyState
+import com.example.flashcard.data.local.entity.Deck
 import com.example.flashcard.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +47,10 @@ fun HomeScreen(
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    var showAddDialog by remember { mutableStateOf(false) }
+    var deckToEdit by remember { mutableStateOf<Deck?>(null) }
+    var expandedDeckId by remember { mutableStateOf<Int?>(null) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -95,12 +103,7 @@ fun HomeScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { 
-                    viewModel.addDemoDeck()
-                    scope.launch {
-                        snackbarHostState.showSnackbar("Đã thêm bộ thẻ mới!")
-                    }
-                },
+                onClick = { showAddDialog = true },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = MaterialTheme.shapes.large,
@@ -148,19 +151,69 @@ fun HomeScreen(
                         items = decks,
                         key = { it.id }
                     ) { deck ->
-                        DeckCard(
-                            deck = deck,
-                            onClick = { onDeckClick(deck.id) },
-                            onMoreClick = {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Tính năng chỉnh sửa sẽ sớm ra mắt!")
-                                }
+                        Box {
+                            DeckCard(
+                                deck = deck,
+                                onClick = { onDeckClick(deck.id) },
+                                onMoreClick = { expandedDeckId = deck.id }
+                            )
+                            
+                            DropdownMenu(
+                                expanded = expandedDeckId == deck.id,
+                                onDismissRequest = { expandedDeckId = null }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Chỉnh sửa") },
+                                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                                    onClick = {
+                                        deckToEdit = deck
+                                        expandedDeckId = null
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Xóa bộ thẻ", color = MaterialTheme.colorScheme.error) },
+                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                                    onClick = {
+                                        viewModel.deleteDeck(deck)
+                                        expandedDeckId = null
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Đã xóa bộ thẻ ${deck.name}")
+                                        }
+                                    }
+                                )
                             }
-                        )
+                        }
                     }
                 }
             }
         }
+    }
+
+    if (showAddDialog) {
+        AddEditDeckDialog(
+            onDismiss = { showAddDialog = false },
+            onConfirm = { name, desc ->
+                viewModel.upsertDeck(name, desc)
+                showAddDialog = false
+                scope.launch {
+                    snackbarHostState.showSnackbar("Đã tạo bộ thẻ mới!")
+                }
+            }
+        )
+    }
+
+    if (deckToEdit != null) {
+        AddEditDeckDialog(
+            deck = deckToEdit,
+            onDismiss = { deckToEdit = null },
+            onConfirm = { name, desc ->
+                viewModel.upsertDeck(name, desc, deckToEdit!!.id)
+                deckToEdit = null
+                scope.launch {
+                    snackbarHostState.showSnackbar("Đã cập nhật bộ thẻ!")
+                }
+            }
+        )
     }
 }
 

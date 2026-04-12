@@ -27,7 +27,7 @@ class MainViewModel @Inject constructor(
     val networkStatus: StateFlow<ConnectivityObserver.Status> = connectivityObserver.observe()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ConnectivityObserver.Status.Unavailable)
 
-    // Hàm thêm dữ liệu mẫu (Gồm Deck và Flashcards)
+    // Thêm dữ liệu mẫu (Gồm Deck và Flashcards)
     fun addDemoDeck() {
         viewModelScope.launch {
             val deckId = repository.insertDeck(
@@ -45,6 +45,23 @@ class MainViewModel @Inject constructor(
             )
 
             demoCards.forEach { repository.insertFlashcard(it) }
+        }
+    }
+
+    // --- CRUD Operations cho DECK ---
+    fun upsertDeck(name: String, description: String, id: Int = 0) {
+        viewModelScope.launch {
+            if (id == 0) {
+                repository.insertDeck(Deck(name = name, description = description))
+            } else {
+                repository.updateDeck(Deck(id = id, name = name, description = description))
+            }
+        }
+    }
+
+    fun deleteDeck(deck: Deck) {
+        viewModelScope.launch {
+            repository.deleteDeck(deck)
         }
     }
 }
