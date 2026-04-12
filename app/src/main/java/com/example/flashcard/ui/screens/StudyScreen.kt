@@ -2,11 +2,9 @@ package com.example.flashcard.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -23,17 +21,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.flashcard.domain.util.TtsHelper
 import com.example.flashcard.ui.components.FlashcardCard
-import com.example.flashcard.ui.components.EmptyState
 import com.example.flashcard.ui.theme.*
 import com.example.flashcard.ui.viewmodel.StudyViewModel
-import androidx.compose.ui.platform.LocalContext
 
 /**
  * Màn hình học tập: Giao diện cao cấp với phong cách Glassmorphism và chuyển động mượt mà.
@@ -50,23 +46,22 @@ fun StudyScreen(
     }
 
     val context = LocalContext.current
-    val ttsHelper = remember { TtsHelper(context) }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            ttsHelper.shutdown()
-        }
+    // Lấy instance TtsHelper đã được khởi tạo sẵn từ Application (Singleton)
+    val ttsHelper = remember {
+        (context.applicationContext as com.example.flashcard.FlashcardApplication).ttsHelper
     }
+
     
     val cards by viewModel.cards.collectAsState()
     val currentIndex by viewModel.currentIndex.collectAsState()
     val isFlipped by viewModel.isFlipped.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isCompleted by viewModel.isCompleted.collectAsState()
+    val isTtsReady by ttsHelper.isReady.collectAsState()
 
-    // --- Tự động phát âm Mặt trước khi chuyển thẻ ---
-    LaunchedEffect(currentIndex) {
-        if (cards.isNotEmpty()) {
+    // --- Tự động phát âm Mặt trước khi chuyển thẻ hoặc khi TTS vừa sẵn sàng ---
+    LaunchedEffect(cards, currentIndex, isTtsReady) {
+        if (isTtsReady && cards.isNotEmpty() && currentIndex < cards.size) {
             ttsHelper.speak(cards[currentIndex].front)
         }
     }
@@ -83,7 +78,7 @@ fun StudyScreen(
         StudyBackgroundDecoration()
 
         Scaffold(
-            containerColor = Color.Transparent, // Để hiện lớp nền bên dưới
+            containerColor = Color.Transparent,
             topBar = {
                 CenterAlignedTopAppBar(
                     title = {
@@ -141,6 +136,51 @@ fun StudyScreen(
                         onBack = onBack,
                         onRestart = { viewModel.restartSession() }
                     )
+                }
+            }
+        }
+
+        // --- TTS Loading Overlay (chỉ hiện khi chưa sẵn sàng) ---
+        AnimatedVisibility(
+            visible = !isTtsReady,
+            enter = fadeIn(),
+            exit = fadeOut(animationSpec = tween(500))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.85f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shadowElevation = 8.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 28.dp, vertical = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 3.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Column {
+                            Text(
+                                text = "🎧 Đang chuẩn bị giọng đọc...",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "Chỉ mất vài giây trong lần đầu tiên",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
                 }
             }
         }
