@@ -9,7 +9,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,6 +38,7 @@ fun FlashcardCard(
     onFlip: () -> Unit,
     onSwipeLeft: () -> Unit = {},
     onSwipeRight: () -> Unit = {},
+    onSpeak: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
@@ -113,7 +117,8 @@ fun FlashcardCard(
                         text = flashcard.front,
                         label = "CÂU HỎI",
                         gradientColors = listOf(OceanStart, OceanEnd),
-                        textColor = MaterialTheme.colorScheme.onSurface
+                        textColor = MaterialTheme.colorScheme.onSurface,
+                        onSpeak = { onSpeak(flashcard.front) }
                     )
                 } else {
                     // Mặt sau (Back)
@@ -125,7 +130,8 @@ fun FlashcardCard(
                             text = flashcard.back,
                             label = "ĐÁP ÁN",
                             gradientColors = listOf(SunsetStart, SunsetEnd),
-                            textColor = MaterialTheme.colorScheme.onSurface
+                            textColor = MaterialTheme.colorScheme.onSurface,
+                            onSpeak = { onSpeak(flashcard.back) }
                         )
                     }
                 }
@@ -186,7 +192,8 @@ private fun FlashcardSide(
     text: String,
     label: String,
     gradientColors: List<Color>,
-    textColor: Color
+    textColor: Color,
+    onSpeak: () -> Unit
 ) {
     val mainGradient = Brush.horizontalGradient(gradientColors)
     val faintGradient = Brush.horizontalGradient(gradientColors.map { it.copy(alpha = 0.05f) })
@@ -224,8 +231,23 @@ private fun FlashcardSide(
                     )
                 }
             }
+
+            IconButton(
+                onClick = onSpeak,
+                modifier = Modifier
+                    .padding(top = 16.dp)
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.VolumeUp,
+                    contentDescription = "Phát âm",
+                    tint = gradientColors[0]
+                )
+            }
             
-            Spacer(modifier = Modifier.height(60.dp))
+            Spacer(modifier = Modifier.height(30.dp))
             
             Text(
                 text = text,

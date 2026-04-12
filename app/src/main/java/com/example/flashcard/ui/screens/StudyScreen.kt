@@ -28,9 +28,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.flashcard.domain.util.TtsHelper
 import com.example.flashcard.ui.components.FlashcardCard
+import com.example.flashcard.ui.components.EmptyState
 import com.example.flashcard.ui.theme.*
 import com.example.flashcard.ui.viewmodel.StudyViewModel
+import androidx.compose.ui.platform.LocalContext
 
 /**
  * Màn hình học tập: Giao diện cao cấp với phong cách Glassmorphism và chuyển động mượt mà.
@@ -45,12 +48,35 @@ fun StudyScreen(
     LaunchedEffect(deckId) {
         viewModel.loadDeck(deckId)
     }
+
+    val context = LocalContext.current
+    val ttsHelper = remember { TtsHelper(context) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            ttsHelper.shutdown()
+        }
+    }
     
     val cards by viewModel.cards.collectAsState()
     val currentIndex by viewModel.currentIndex.collectAsState()
     val isFlipped by viewModel.isFlipped.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isCompleted by viewModel.isCompleted.collectAsState()
+
+    // --- Tự động phát âm Mặt trước khi chuyển thẻ ---
+    LaunchedEffect(currentIndex) {
+        if (cards.isNotEmpty()) {
+            ttsHelper.speak(cards[currentIndex].front)
+        }
+    }
+
+    // --- Tự động phát âm Mặt sau khi lật thẻ ---
+    LaunchedEffect(isFlipped) {
+        if (isFlipped && cards.isNotEmpty()) {
+            ttsHelper.speak(cards[currentIndex].back)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // --- Lớp nền Glassmorphism (Blurred Blobs) ---
@@ -111,6 +137,7 @@ fun StudyScreen(
                         onNext = { viewModel.nextCard() },
                         onLearned = { viewModel.swipeLearned() },
                         onReview = { viewModel.swipeReview() },
+                        onSpeak = { text -> ttsHelper.speak(text) },
                         onBack = onBack,
                         onRestart = { viewModel.restartSession() }
                     )
@@ -172,6 +199,7 @@ private fun StudyMainContent(
     onNext: () -> Unit,
     onLearned: () -> Unit,
     onReview: () -> Unit,
+    onSpeak: (String) -> Unit,
     onBack: () -> Unit,
     onRestart: () -> Unit
 ) {
@@ -250,7 +278,8 @@ private fun StudyMainContent(
                     isFlipped = isFlipped,
                     onFlip = onFlip,
                     onSwipeLeft = { onReview() },
-                    onSwipeRight = { onLearned() }
+                    onSwipeRight = { onLearned() },
+                    onSpeak = onSpeak
                 )
             }
         }
