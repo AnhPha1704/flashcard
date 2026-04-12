@@ -9,6 +9,9 @@ interface DeckDao {
     @Query("SELECT * FROM decks ORDER BY createdAt DESC")
     fun getAllDecks(): Flow<List<Deck>>
 
+    @Query("SELECT decks.*, (SELECT COUNT(id) FROM flashcards WHERE deckId = decks.id) as cardCount FROM decks ORDER BY createdAt DESC")
+    fun getAllDecksWithCount(): Flow<List<com.example.flashcard.data.local.entity.DeckWithCount>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDeck(deck: Deck): Long
 

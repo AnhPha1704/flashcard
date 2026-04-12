@@ -9,9 +9,13 @@ import com.example.flashcard.domain.util.ConnectivityObserver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.flashcard.data.local.entity.DeckWithCount
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
@@ -19,15 +23,29 @@ class MainViewModel @Inject constructor(
     private val connectivityObserver: ConnectivityObserver
 ) : ViewModel() {
 
-    // Quan sát danh sách bộ thẻ (Decks) từ Database
-    val decks: StateFlow<List<Deck>> = repository.getAllDecks()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
+
+    // Quan sát danh sách bộ thẻ (Decks) cùng số lượng thẻ từ Database và lọc theo search query
+    val decks: StateFlow<List<DeckWithCount>> = combine(
+        repository.getAllDecksWithCount(),
+        _searchQuery
+    ) { deckList, query ->
+        if (query.isBlank()) {
+            deckList
+        } else {
+            deckList.filter { 
+                it.deck.name.contains(query, ignoreCase = true) || 
+                (it.deck.description?.contains(query, ignoreCase = true) == true) 
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Quan sát trạng thái mạng
     val networkStatus: StateFlow<ConnectivityObserver.Status> = connectivityObserver.observe()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ConnectivityObserver.Status.Unavailable)
 
-    // Hàm thêm dữ liệu mẫu (Gồm Deck và Flashcards)
+    // Thêm dữ liệu mẫu (Gồm Deck và Flashcards)
     fun addDemoDeck() {
         viewModelScope.launch {
             val deckId = repository.insertDeck(
@@ -46,5 +64,26 @@ class MainViewModel @Inject constructor(
 
             demoCards.forEach { repository.insertFlashcard(it) }
         }
+    }
+
+    // --- CRUD Operations cho DECK ---
+    fun upsertDeck(name: String, description: String, id: Int = 0) {
+        viewModelScope.launch {
+            if (id == 0) {
+                repository.insertDeck(Deck(name = name, description = description))
+            } else {
+                repository.updateDeck(Deck(id = id, name = name, description = description))
+            }
+        }
+    }
+
+    fun deleteDeck(deck: Deck) {
+        viewModelScope.launch {
+            repository.deleteDeck(deck)
+        }
+    }
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
     }
 }
