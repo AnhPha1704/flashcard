@@ -5,23 +5,20 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,9 +30,6 @@ import com.example.flashcard.ui.components.FlashcardCard
 import com.example.flashcard.ui.theme.*
 import com.example.flashcard.ui.viewmodel.StudyViewModel
 
-/**
- * Màn hình học tập: Neo-Brutalism với nền labyrinth Navy đậm và nút Forgot/Know.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudyScreen(
@@ -71,8 +65,8 @@ fun StudyScreen(
         }
     }
 
-    // --- Outer container: Navy background ---
-    Box(modifier = Modifier.fillMaxSize().background(NeoNavy)) {
+    // --- Outer container: Pink background for consistency ---
+    Box(modifier = Modifier.fillMaxSize().background(NeoBackgroundPink)) {
 
         // === Labyrinth strip TOP ===
         Image(
@@ -83,19 +77,7 @@ fun StudyScreen(
                 .height(160.dp)
                 .align(Alignment.TopCenter),
             contentScale = ContentScale.Crop,
-            alpha = 0.9f
-        )
-
-        // === Labyrinth strip BOTTOM ===
-        Image(
-            painter = painterResource(id = R.drawable.labyrinth),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp)
-                .align(Alignment.BottomCenter),
-            contentScale = ContentScale.Crop,
-            alpha = 0.9f
+            alpha = 0.2f // Subtle in pink background
         )
 
         // === Main content scaffold on top ===
@@ -104,30 +86,51 @@ fun StudyScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp)
-                    .padding(horizontal = 16.dp),
+                    .height(80.dp)
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onBack) {
-                    Text(
-                        text = "Done",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Black,
-                        color = NeoWhite
-                    )
+                // Back Button
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(NeoWhite, RoundedCornerShape(12.dp))
+                        .border(BorderStroke(2.dp, NeoNavy), RoundedCornerShape(12.dp))
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = NeoNavy)
                 }
+                
                 Spacer(modifier = Modifier.weight(1f))
-                if (cards.isNotEmpty() && !isLoading) {
-                    Text(
-                        text = "${currentIndex + 1} of ${cards.size}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Black,
-                        color = NeoWhite
-                    )
+                
+                // Progress Pill
+                if (cards.isNotEmpty() && !isLoading && !isCompleted) {
+                    Surface(
+                        color = NeoWhite,
+                        shape = RoundedCornerShape(50),
+                        border = BorderStroke(2.dp, NeoNavy)
+                    ) {
+                        Text(
+                            text = "${currentIndex + 1} / ${cards.size}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black,
+                            color = NeoNavy,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                        )
+                    }
                 }
+                
                 Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = { viewModel.restartSession() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Học lại", tint = NeoWhite)
+                
+                // Restart Button
+                IconButton(
+                    onClick = { viewModel.restartSession() },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(NeoWhite, RoundedCornerShape(12.dp))
+                        .border(BorderStroke(2.dp, NeoNavy), RoundedCornerShape(12.dp))
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Học lại", tint = NeoNavy)
                 }
             }
 
@@ -139,7 +142,7 @@ fun StudyScreen(
             ) {
                 if (isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = NeoWhite, strokeWidth = 5.dp)
+                        CircularProgressIndicator(color = NeoNavy, strokeWidth = 5.dp)
                     }
                 } else if (cards.isEmpty()) {
                     EmptyStudyState(onBack)
@@ -219,23 +222,23 @@ private fun StudyMainContent(
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.weight(0.05f))
-
-        // --- Progress bar ---
-        val progress by animateFloatAsState(
-            targetValue = (currentIndex + 1).toFloat() / cards.size,
-            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow),
-            label = "StudyProgress"
-        )
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .clip(RoundedCornerShape(100)),
-            color = NeoBackgroundPink,
-            trackColor = NeoWhite.copy(alpha = 0.3f)
-        )
+        
+        // --- Custom Segmented Progress Bar ---
+        Row(
+            modifier = Modifier.fillMaxWidth().height(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            for (i in cards.indices) {
+                val color = if (i <= currentIndex) NeoNavy else NeoWhite
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .background(color, RoundedCornerShape(100))
+                        .border(BorderStroke(if (i <= currentIndex) 0.dp else 2.dp, NeoNavy), RoundedCornerShape(100))
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.weight(0.05f))
 
@@ -279,6 +282,83 @@ private fun StudyMainContent(
 }
 
 @Composable
+private fun StudyControls(
+    onReview: () -> Unit,
+    onLearned: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 32.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Nút Forgot (Ôn lại) - Redish theme for "Wrong/Forgot" within Neo Brutalist
+        val reviewColor = Color(0xFFFF9BAA) 
+        
+        Box(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .offset(x = 6.dp, y = 6.dp)
+                    .background(NeoNavy, RoundedCornerShape(16.dp))
+            )
+            Surface(
+                onClick = onReview,
+                color = reviewColor,
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(3.dp, NeoNavy),
+                modifier = Modifier.fillMaxWidth().height(72.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "☹\uFE0F", fontSize = 24.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "QUÊN",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Black,
+                            color = NeoNavy
+                        )
+                    }
+                }
+            }
+        }
+
+        // Nút Know (Thuộc) - Greenish theme for "Correct/Know"
+        val learnedColor = Color(0xFFC7F4C2)
+        Box(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .offset(x = 6.dp, y = 6.dp)
+                    .background(NeoNavy, RoundedCornerShape(16.dp))
+            )
+            Surface(
+                onClick = onLearned,
+                color = learnedColor,
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(3.dp, NeoNavy),
+                modifier = Modifier.fillMaxWidth().height(72.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "😃", fontSize = 24.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "THUỘC",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Black,
+                            color = NeoNavy
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun CompletionScreen(
     totalCards: Int,
     onRestart: () -> Unit,
@@ -296,23 +376,18 @@ private fun CompletionScreen(
         Box {
             Box(
                 modifier = Modifier
-                    .size(120.dp)
-                    .offset(x = 6.dp, y = 6.dp)
-                    .background(NeoNavy, CircleShape)
+                    .size(140.dp)
+                    .offset(x = 8.dp, y = 8.dp)
+                    .background(NeoNavy, RoundedCornerShape(32.dp))
             )
             Surface(
-                modifier = Modifier.size(120.dp),
-                shape = CircleShape,
-                color = NeoBackgroundPink,
-                border = BorderStroke(3.dp, NeoNavy)
+                modifier = Modifier.size(140.dp),
+                shape = RoundedCornerShape(32.dp),
+                color = NeoBackgroundBlue,
+                border = BorderStroke(4.dp, NeoNavy)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(72.dp),
-                        tint = NeoNavy
-                    )
+                    Text("🏆", fontSize = 72.sp)
                 }
             }
         }
@@ -320,56 +395,58 @@ private fun CompletionScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            text = "Tuyệt vời!",
-            style = MaterialTheme.typography.headlineLarge,
+            text = "TUYỆT VỜI!",
+            style = MaterialTheme.typography.displayMedium,
             fontWeight = FontWeight.Black,
-            color = NeoWhite
+            color = NeoNavy
         )
         Text(
             text = "Bạn đã hoàn thành $totalCards thẻ.",
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center,
-            color = NeoWhite.copy(alpha = 0.8f),
+            color = NeoNavy,
             modifier = Modifier.padding(top = 8.dp)
         )
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(64.dp))
 
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            // Nút Học lại
             Box {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
-                        .offset(x = 5.dp, y = 5.dp)
-                        .background(NeoWhite.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                        .height(64.dp)
+                        .offset(x = 6.dp, y = 6.dp)
+                        .background(NeoNavy, RoundedCornerShape(16.dp))
                 )
                 Surface(
                     onClick = onRestart,
-                    color = NeoBackgroundPink,
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(3.dp, NeoWhite),
-                    modifier = Modifier.fillMaxWidth().height(56.dp)
+                    color = NeoBackgroundBlue,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(3.dp, NeoNavy),
+                    modifier = Modifier.fillMaxWidth().height(64.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, tint = NeoNavy)
+                            Icon(Icons.Default.Refresh, contentDescription = null, tint = NeoNavy, modifier = Modifier.size(28.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Học lại từ đầu", fontWeight = FontWeight.Black, color = NeoNavy)
+                            Text("HỌC LẠI TỪ ĐẦU", fontSize = 18.sp, fontWeight = FontWeight.Black, color = NeoNavy)
                         }
                     }
                 }
             }
 
+            // Nút Về màn hình chính
             Surface(
                 onClick = onBack,
-                color = Color.Transparent,
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(3.dp, NeoWhite),
-                modifier = Modifier.fillMaxWidth().height(56.dp)
+                color = NeoWhite,
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(3.dp, NeoNavy),
+                modifier = Modifier.fillMaxWidth().height(64.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text("Về màn hình chính", fontWeight = FontWeight.Black, color = NeoWhite)
+                    Text("VỀ MÀN HÌNH CHÍNH", fontSize = 18.sp, fontWeight = FontWeight.Black, color = NeoNavy)
                 }
             }
         }
@@ -383,99 +460,45 @@ private fun EmptyStudyState(onBack: () -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "😅", fontSize = 64.sp)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Chưa có thẻ nào trong bộ này!",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Black,
-            color = NeoWhite
-        )
+        Text(text = "😅", fontSize = 80.sp)
         Spacer(modifier = Modifier.height(24.dp))
-        Surface(
-            onClick = onBack,
-            color = NeoBackgroundPink,
-            shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(3.dp, NeoWhite)
-        ) {
-            Text(
-                "Quay lại",
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                fontWeight = FontWeight.Black,
-                color = NeoNavy
-            )
-        }
-    }
-}
-
-@Composable
-private fun StudyControls(
-    onReview: () -> Unit,
-    onLearned: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 32.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Nút Forgot
-        Box(modifier = Modifier.weight(1f)) {
-            Box(
+        Text(
+            text = "CHƯA CÓ THẺ NÀO!",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Black,
+            color = NeoNavy
+        )
+        Text(
+            text = "Hãy thêm thẻ vào bộ này trước nhé.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = NeoNavy.copy(alpha = 0.8f),
+            modifier = Modifier.padding(top = 8.dp)
+        )
+        
+        Spacer(modifier = Modifier.height(48.dp))
+        
+        Box {
+             Box(
                 modifier = Modifier
-                    .matchParentSize()
+                    .width(200.dp)
+                    .height(56.dp)
                     .offset(x = 4.dp, y = 4.dp)
-                    .background(NeoWhite.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                    .background(NeoNavy, RoundedCornerShape(16.dp))
             )
             Surface(
-                onClick = onReview,
+                onClick = onBack,
                 color = NeoWhite,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 border = BorderStroke(3.dp, NeoNavy),
-                modifier = Modifier.fillMaxWidth().height(60.dp)
+                modifier = Modifier.width(200.dp).height(56.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "☹\uFE0F", fontSize = 20.sp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Forgot",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Black,
-                            color = NeoNavy
-                        )
-                    }
-                }
-            }
-        }
-
-        // Nút Know
-        Box(modifier = Modifier.weight(1f)) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .offset(x = 4.dp, y = 4.dp)
-                    .background(NeoNavy.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-            )
-            Surface(
-                onClick = onLearned,
-                color = NeoBackgroundPink,
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(3.dp, NeoNavy),
-                modifier = Modifier.fillMaxWidth().height(60.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "😃", fontSize = 20.sp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Know",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Black,
-                            color = NeoNavy
-                        )
-                    }
+                    Text(
+                        "QUAY LẠI",
+                        fontWeight = FontWeight.Black,
+                        color = NeoNavy,
+                        fontSize = 18.sp
+                    )
                 }
             }
         }
