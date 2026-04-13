@@ -333,24 +333,24 @@ private fun DetailBox(modifier: Modifier = Modifier, label: String, count: Int, 
 }
 
 private fun buildWeekData(history: List<DayStudyCount>): List<Pair<String, Int>> {
-    val historyMap = history.associate { it.dayTimestamp to it.count }
+    val historyMap = history.associate { it.dayDate to it.count }
     val result = mutableListOf<Pair<String, Int>>()
-    val today = Calendar.getInstance().apply {
-        set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-    }
+    val today = java.time.LocalDate.now()
+    val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
+    
     for (i in 6 downTo 0) {
-        val cal = today.clone() as Calendar
-        cal.add(Calendar.DAY_OF_YEAR, -i)
-        val ts = (cal.timeInMillis / 86400000L) * 86400000L
-        val count = historyMap[ts] ?: 0
-        val label = if (i == 0) "Hôm nay" else when (cal.get(Calendar.DAY_OF_WEEK)) {
-            Calendar.MONDAY -> "T2"
-            Calendar.TUESDAY -> "T3"
-            Calendar.WEDNESDAY -> "T4"
-            Calendar.THURSDAY -> "T5"
-            Calendar.FRIDAY -> "T6"
-            Calendar.SATURDAY -> "T7"
-            else -> "CN"
+        val date = today.minusDays(i.toLong())
+        val dateStr = date.format(formatter)
+        val count = historyMap[dateStr] ?: 0
+        val label = if (i == 0) "Hôm nay" else when (date.dayOfWeek) {
+            java.time.DayOfWeek.MONDAY -> "T2"
+            java.time.DayOfWeek.TUESDAY -> "T3"
+            java.time.DayOfWeek.WEDNESDAY -> "T4"
+            java.time.DayOfWeek.THURSDAY -> "T5"
+            java.time.DayOfWeek.FRIDAY -> "T6"
+            java.time.DayOfWeek.SATURDAY -> "T7"
+            java.time.DayOfWeek.SUNDAY -> "CN"
+            else -> ""
         }
         result.add(label to count)
     }
