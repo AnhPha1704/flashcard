@@ -15,6 +15,13 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import android.util.Log
 import java.util.Calendar
+import android.content.Context
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.example.flashcard.data.worker.SyncWorker
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,7 +30,8 @@ class FlashcardRepositoryImpl @Inject constructor(
     private val deckDao: DeckDao,
     private val flashcardDao: FlashcardDao,
     private val studyLogDao: StudyLogDao,
-    private val firestoreDataSource: FirestoreDataSource
+    private val firestoreDataSource: FirestoreDataSource,
+    @ApplicationContext private val context: Context
 ) : FlashcardRepository {
 
     // ===== DECK OPERATIONS =====
@@ -42,7 +50,8 @@ class FlashcardRepositoryImpl @Inject constructor(
             firestoreDataSource.syncDeck(newDeck)
             deckDao.updateDeck(newDeck.copy(isSynced = true))
         } catch (e: Exception) {
-            Log.e("FlashcardRepo", "Lỗi đồng bộ deck", e)
+            Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
+            scheduleSyncWorker()
         }
         return id
     }
@@ -54,7 +63,8 @@ class FlashcardRepositoryImpl @Inject constructor(
             firestoreDataSource.syncDeck(lastModifiedDeck)
             deckDao.updateDeck(lastModifiedDeck.copy(isSynced = true))
         } catch (e: Exception) {
-            Log.e("FlashcardRepo", "Lỗi đồng bộ deck", e)
+            Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
+            scheduleSyncWorker()
         }
         return result
     }
@@ -64,7 +74,8 @@ class FlashcardRepositoryImpl @Inject constructor(
         try {
             firestoreDataSource.deleteDeck(deck.id)
         } catch (e: Exception) {
-            Log.e("FlashcardRepo", "Lỗi đồng bộ xóa deck", e)
+            Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
+            scheduleSyncWorker()
         }
         return result
     }
@@ -84,7 +95,8 @@ class FlashcardRepositoryImpl @Inject constructor(
             firestoreDataSource.syncFlashcard(newCard)
             flashcardDao.updateFlashcard(newCard.copy(isSynced = true))
         } catch (e: Exception) {
-            Log.e("FlashcardRepo", "Lỗi đồng bộ flashcard", e)
+            Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
+            scheduleSyncWorker()
         }
         return id
     }
@@ -96,7 +108,8 @@ class FlashcardRepositoryImpl @Inject constructor(
             firestoreDataSource.syncFlashcard(lastModifiedCard)
             flashcardDao.updateFlashcard(lastModifiedCard.copy(isSynced = true))
         } catch (e: Exception) {
-            Log.e("FlashcardRepo", "Lỗi đồng bộ flashcard", e)
+            Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
+            scheduleSyncWorker()
         }
         return result
     }
@@ -106,7 +119,8 @@ class FlashcardRepositoryImpl @Inject constructor(
         try {
             firestoreDataSource.deleteFlashcard(flashcard.deckId, flashcard.id)
         } catch (e: Exception) {
-            Log.e("FlashcardRepo", "Lỗi đồng bộ xóa flashcard", e)
+            Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
+            scheduleSyncWorker()
         }
         return result
     }
@@ -115,7 +129,7 @@ class FlashcardRepositoryImpl @Inject constructor(
         flashcardDao.getCardsToReview(deckId, currentTime)
 
     override suspend fun recordStudyEvent(flashcard: Flashcard, quality: Int) {
-        // 1. Cập nhật thẻ flashcard (SM-2 logic sẽ được thực hiện ở ViewModel hoặc Repo tùy thiết kế)
+        // 1. Cập nhật thẻ flashcard
         flashcardDao.updateFlashcard(flashcard.copy(lastModified = System.currentTimeMillis()))
         
         // 2. Ghi log học tập
@@ -130,9 +144,9 @@ class FlashcardRepositoryImpl @Inject constructor(
         // 3. Đồng bộ (Async)
         try {
             firestoreDataSource.syncFlashcard(flashcard)
-            // (Tùy chọn: Đồng bộ cả log lên cloud nếu Firestore hỗ trợ)
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ trong recordStudyEvent", e)
+            scheduleSyncWorker()
         }
     }
 
@@ -141,11 +155,9 @@ class FlashcardRepositoryImpl @Inject constructor(
             val cloudDecks = firestoreDataSource.getAllDecks()
             for (cloudDeck in cloudDecks) {
                 val localDeck = deckDao.getDeckById(cloudDeck.id)
-                // Nếu local chưa có HOẶC bản trên cloud mới hơn bản local
                 if (localDeck == null || cloudDeck.lastModified > localDeck.lastModified) {
                     deckDao.insertDeck(cloudDeck.copy(isSynced = true))
                 }
-                // Đồng bộ Flashcards cho từng Deck
                 val cloudCards = firestoreDataSource.getAllFlashcards(cloudDeck.id)
                 for (cloudCard in cloudCards) {
                     val localCard = flashcardDao.getFlashcardById(cloudCard.id)
@@ -157,6 +169,7 @@ class FlashcardRepositoryImpl @Inject constructor(
             Log.d("FlashcardRepo", "Đồng bộ hoàn tất thành công")
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi trong quá trình đồng bộ toàn diện", e)
+            scheduleSyncWorker()
         }
     }
 
@@ -168,8 +181,8 @@ class FlashcardRepositoryImpl @Inject constructor(
             flashcardDao.getTotalCardCount(),
             flashcardDao.getEasyCardCount(),
             flashcardDao.getHardCardCount(),
-            studyLogDao.getTodayLearnedCount(startOfToday), // Lấy chính xác từ Log
-            studyLogDao.getDistinctStudyDays() // Tính Streak từ Log sẽ bền vững hơn
+            studyLogDao.getTodayLearnedCount(startOfToday), 
+            studyLogDao.getDistinctStudyDays() 
         ) { total, easy, hard, todayLearned, studyDays ->
             val streak = calculateStreak(studyDays)
             StatsOverview(
@@ -190,11 +203,6 @@ class FlashcardRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Tính số ngày học liên tục.
-     * studyDayIndices = danh sách "số ngày kể từ epoch UTC" (lastModified / 86400000),
-     * sắp xếp giảm dần (ngày gần nhất trước).
-     */
     private fun calculateStreak(studyDayIndices: List<Long>): Int {
         if (studyDayIndices.isEmpty()) return 0
         val todayIndex = System.currentTimeMillis() / 86400000L
@@ -207,7 +215,6 @@ class FlashcardRepositoryImpl @Inject constructor(
                     expectedDay--
                 }
                 todayIndex - 1 -> if (streak == 0) {
-                    // Hôm nay chưa học, bắt đầu từ hôm qua
                     streak = 1
                     expectedDay = dayIndex - 1
                 } else break
@@ -224,5 +231,18 @@ class FlashcardRepositoryImpl @Inject constructor(
         cal.set(Calendar.SECOND, 0)
         cal.set(Calendar.MILLISECOND, 0)
         return cal.timeInMillis
+    }
+
+    private fun scheduleSyncWorker() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+            
+        val syncWorkRequest = OneTimeWorkRequestBuilder<SyncWorker>()
+            .setConstraints(constraints)
+            .build()
+            
+        WorkManager.getInstance(context).enqueue(syncWorkRequest)
+        Log.d("FlashcardRepo", "Đã lên lịch SyncWorker để đồng bộ lại sau.")
     }
 }

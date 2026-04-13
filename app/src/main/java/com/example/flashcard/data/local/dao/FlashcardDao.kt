@@ -25,6 +25,9 @@ interface FlashcardDao {
     @Query("SELECT * FROM flashcards WHERE deckId = :deckId AND nextReview <= :currentTime")
     fun getCardsToReview(deckId: Int, currentTime: Long): Flow<List<Flashcard>>
 
+    @Query("SELECT * FROM flashcards WHERE isSynced = 0")
+    suspend fun getUnsyncedFlashcards(): List<Flashcard>
+
     // ===== THỐNG KÊ =====
 
     @Query("SELECT COUNT(*) AS count FROM flashcards")
@@ -43,7 +46,7 @@ interface FlashcardDao {
     fun getTodayStudiedCount(startOfDay: Long): Flow<Int>
 
     /**
-     * Lịch sử học 7 ngày gần nhất: trả về danh sách (dayOffset, count)
+     * Lịch sử học 7 ngày gần nhất: trả về danh sách (dayTimestamp, count)
      * dayOffset = số milliseconds bắt đầu của ngày (tính theo UTC midnight)
      */
     @Query("""

@@ -58,8 +58,8 @@
 
 - [x] **WorkManager:** Lên lịch thông báo (**Push Notification**) nhắc nhở việc học hàng ngày theo khung giờ vàng.
 - [x] **Text-to-Speech (TTS):** Tích hợp Google TTS giúp người dùng phát âm từ vựng chuẩn xác.
-- [ ] **Cloud Sync:** Kết nối với Backend để đồng bộ hóa tiến độ học tập trên nhiều thiết bị.
-- [ ] **Error Handling:** Xử lý triệt để các trường hợp mất kết nối mạng hoặc lỗi API để ứng dụng luôn ổn định.
+- [x] **Cloud Sync:** Kết nối với Backend để đồng bộ hóa tiến độ học tập trên nhiều thiết bị.
+- [x] **Error Handling:** Xử lý triệt để các trường hợp mất kết nối mạng hoặc lỗi API để ứng dụng luôn ổn định.
 
 ---
 
