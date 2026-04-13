@@ -55,30 +55,15 @@ fun StatsScreen(
 ) {
     val stats by viewModel.statsOverview.collectAsState()
     val history by viewModel.weeklyHistory.collectAsState()
-    val labyrinthPainter = painterResource(id = R.drawable.labyrinth)
+    // --- Stats Content ---
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = Color.Transparent // We draw background behind
+        containerColor = NeoBackgroundPink
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(NeoBackgroundPink)
-                .drawBehind {
-                    // Draw labyrinth background with proper scaling (Crop)
-                    val intrinsicSize = labyrinthPainter.intrinsicSize
-                    if (intrinsicSize != androidx.compose.ui.geometry.Size.Unspecified) {
-                        val scale = maxOf(size.width / intrinsicSize.width, size.height / intrinsicSize.height)
-                        val drawWidth = intrinsicSize.width * scale
-                        val drawHeight = intrinsicSize.height * scale
-                        translate((size.width - drawWidth) / 2, (size.height - drawHeight) / 2) {
-                            with(labyrinthPainter) {
-                                draw(size = androidx.compose.ui.geometry.Size(drawWidth, drawHeight), alpha = 0.15f)
-                            }
-                        }
-                    }
-                }
                 .padding(innerPadding)
         ) {
             Column(
