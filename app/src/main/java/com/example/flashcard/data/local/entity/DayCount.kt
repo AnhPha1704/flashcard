@@ -4,6 +4,6 @@ import androidx.room.ColumnInfo
 
 /** Kết quả truy vấn tổng hợp từ Room: số thẻ học theo từng ngày */
 data class DayCount(
-    @ColumnInfo(name = "dayTimestamp") val dayTimestamp: Long,
+    @ColumnInfo(name = "dayString") val dayString: String,
     @ColumnInfo(name = "count") val count: Int
 )

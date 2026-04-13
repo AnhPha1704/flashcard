@@ -46,27 +46,26 @@ interface FlashcardDao {
     fun getTodayStudiedCount(startOfDay: Long): Flow<Int>
 
     /**
-     * Lịch sử học 7 ngày gần nhất: trả về danh sách (dayTimestamp, count)
-     * dayOffset = số milliseconds bắt đầu của ngày (tính theo UTC midnight)
+     * Lịch sử học 7 ngày gần nhất: trả về danh sách (dayString, count) theo giờ địa phương.
      */
     @Query("""
         SELECT 
-            (lastModified / 86400000) * 86400000 AS dayTimestamp,
+            strftime('%Y-%m-%d', datetime(lastModified / 1000, 'unixepoch', 'localtime')) AS dayString,
             COUNT(*) AS count
         FROM flashcards
         WHERE lastModified >= :since AND repetitions >= 1
-        GROUP BY dayTimestamp
-        ORDER BY dayTimestamp ASC
+        GROUP BY dayString
+        ORDER BY dayString ASC
     """)
     fun getStudyHistorySince(since: Long): Flow<List<DayCount>>
 
-    /** Lấy tất cả flashcard để tính streak */
+    /** Lấy tất cả các ngày duy nhất có hoạt động học tập (định dạng YYYY-MM-DD địa phương) */
     @Query("""
-        SELECT (lastModified / 86400000) AS dayIndex 
+        SELECT strftime('%Y-%m-%d', datetime(lastModified / 1000, 'unixepoch', 'localtime')) AS dayString
         FROM flashcards 
         WHERE repetitions >= 1 
-        GROUP BY dayIndex 
-        ORDER BY dayIndex DESC
+        GROUP BY dayString 
+        ORDER BY dayString DESC
     """)
-    fun getDistinctStudyDays(): Flow<List<Long>>
+    fun getDistinctStudyDays(): Flow<List<String>>
 }

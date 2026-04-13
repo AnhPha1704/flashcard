@@ -20,28 +20,28 @@ interface StudyLogDao {
 
     /** 
      * Lấy lịch sử học tập (số thẻ học mỗi ngày) trong khoảng thời gian xác định.
-     * Trả về danh sách DayCount (dayTimestamp, count)
+     * Trả về danh sách DayCount (dayString, count) theo giờ địa phương.
      */
     @Query("""
         SELECT 
-            (timestamp / 86400000) * 86400000 AS dayTimestamp,
+            strftime('%Y-%m-%d', datetime(timestamp / 1000, 'unixepoch', 'localtime')) AS dayString,
             COUNT(DISTINCT cardId) AS count
         FROM study_logs
         WHERE quality = 1 AND timestamp >= :since
-        GROUP BY dayTimestamp
-        ORDER BY dayTimestamp ASC
+        GROUP BY dayString
+        ORDER BY dayString ASC
     """)
     fun getStudyHistorySince(since: Long): Flow<List<DayCount>>
 
-    /** Lấy tất cả các ngày duy nhất có hoạt động học tập để tính Streak */
+    /** Lấy tất cả các ngày duy nhất có hoạt động học tập để tính Streak (định dạng YYYY-MM-DD) */
     @Query("""
-        SELECT (timestamp / 86400000) AS dayIndex
+        SELECT strftime('%Y-%m-%d', datetime(timestamp / 1000, 'unixepoch', 'localtime')) AS dayString
         FROM study_logs 
         WHERE quality = 1 
-        GROUP BY dayIndex
-        ORDER BY dayIndex DESC
+        GROUP BY dayString
+        ORDER BY dayString DESC
     """)
-    fun getDistinctStudyDays(): Flow<List<Long>>
+    fun getDistinctStudyDays(): Flow<List<String>>
 
     /** Xóa log cũ (nếu cần bảo trì database) */
     @Query("DELETE FROM study_logs WHERE timestamp < :timestamp")

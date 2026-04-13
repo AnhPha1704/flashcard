@@ -199,28 +199,47 @@ class FlashcardRepositoryImpl @Inject constructor(
     override fun getStudyHistoryLast7Days(): Flow<List<DayStudyCount>> {
         val sevenDaysAgo = System.currentTimeMillis() - (7L * 24 * 60 * 60 * 1000)
         return studyLogDao.getStudyHistorySince(sevenDaysAgo).map { list ->
-            list.map { DayStudyCount(it.dayTimestamp, it.count) }
+            list.map { DayStudyCount(it.dayString, it.count) }
         }
     }
 
-    private fun calculateStreak(studyDayIndices: List<Long>): Int {
-        if (studyDayIndices.isEmpty()) return 0
-        val todayIndex = System.currentTimeMillis() / 86400000L
+    private fun calculateStreak(studyDates: List<String>): Int {
+        if (studyDates.isEmpty()) return 0
+        
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val today = sdf.format(java.util.Date())
+        val calendar = java.util.Calendar.getInstance()
+        
         var streak = 0
-        var expectedDay = todayIndex
-        for (dayIndex in studyDayIndices) {
-            when (dayIndex) {
-                expectedDay -> {
-                    streak++
-                    expectedDay--
-                }
-                todayIndex - 1 -> if (streak == 0) {
-                    streak = 1
-                    expectedDay = dayIndex - 1
-                } else break
-                else -> break
+        var currentDateStr = today
+        
+        // Kiểm tra xem có học hôm nay không
+        if (studyDates.contains(today)) {
+            streak = 1
+            calendar.time = sdf.parse(today)!!
+        } else {
+            // Nếu không học hôm nay, kiểm tra xem có học hôm qua không để giữ streak
+            calendar.add(java.util.Calendar.DAY_OF_YEAR, -1)
+            val yesterday = sdf.format(calendar.time)
+            if (studyDates.contains(yesterday)) {
+                streak = 0 // Streak vẫn còn hiệu lực nhưng không tăng cho đến khi học hôm nay
+                currentDateStr = yesterday
+            } else {
+                return 0
             }
         }
+        
+        // Đếm ngược về quá khứ
+        while (true) {
+            calendar.add(java.util.Calendar.DAY_OF_YEAR, -1)
+            val prevDateStr = sdf.format(calendar.time)
+            if (studyDates.contains(prevDateStr)) {
+                streak++
+            } else {
+                break
+            }
+        }
+        
         return streak
     }
 
