@@ -150,4 +150,171 @@ class MainActivity : ComponentActivity() {
                                     targetState = currentTab,
                                     transitionSpec = {
                                         if (targetState.ordinal > initialState.ordinal) {
-                                            (slideInHorizontally { it } + fadeIn()).togetherWith(slide
+                                            (slideInHorizontally { it } + fadeIn()).togetherWith(slideOutHorizontally { -it } + fadeOut())
+                                        } else {
+                                            (slideInHorizontally { -it } + fadeIn()).togetherWith(slideOutHorizontally { it } + fadeOut())
+                                        }.using(SizeTransform(clip = false))
+                                    },
+                                    label = "TabTransition"
+                                ) { tab ->
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        when (tab) {
+                                            BottomTab.HOME -> HomeScreen(
+                                                onDeckClick = { deckId ->
+                                                    currentScreen = Screen.DeckDetail(deckId)
+                                                }
+                                            )
+                                            BottomTab.DECKS -> HomeScreen(
+                                                onDeckClick = { deckId ->
+                                                    currentScreen = Screen.DeckDetail(deckId)
+                                                }
+                                            )
+                                            BottomTab.STATS -> StatsScreen()
+                                            BottomTab.SETTINGS -> SettingsScreen(
+                                                onLogoutClick = { authViewModel.signOut() }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    is Screen.DeckDetail -> {
+                        DeckDetailScreen(
+                            deckId = screen.deckId,
+                            onBack = { currentScreen = Screen.MainApp },
+                            onStudyClick = { deckId -> currentScreen = Screen.Study(deckId) }
+                        )
+                    }
+
+                    is Screen.Study -> {
+                        StudyScreen(
+                            deckId = screen.deckId,
+                            onBack = { currentScreen = Screen.DeckDetail(screen.deckId) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun checkAndRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+}
+
+// ──────────────────────────────────────────
+// Bottom Navigation Bar (Neo-Brutalism Animated)
+// ──────────────────────────────────────────
+@Composable
+fun NeoBottomNavigationBar(
+    selectedTab: BottomTab,
+    onTabSelected: (BottomTab) -> Unit
+) {
+    Surface(
+        color = NeoNavy,
+        border = BorderStroke(3.dp, NeoNavy),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        modifier = Modifier.fillMaxWidth().height(80.dp + 16.dp)
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(vertical = 8.dp)
+        ) {
+            val tabWidth = maxWidth / BottomTab.entries.size
+            val indicatorOffset by animateDpAsState(
+                targetValue = tabWidth * selectedTab.ordinal,
+                animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                label = "IndicatorOffset"
+            )
+
+            // --- Hộp chỉ báo trượt ---
+            Box(
+                modifier = Modifier
+                    .offset(x = indicatorOffset)
+                    .width(tabWidth)
+                    .fillMaxHeight()
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Surface(
+                    color = NeoBackgroundPink,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(2.dp, NeoWhite),
+                    modifier = Modifier.fillMaxSize()
+                ) {}
+            }
+
+            // --- Các Icon Tab ---
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BottomTab.entries.forEach { tab ->
+                    val isSelected = selectedTab == tab
+                    
+                    val iconScale by animateFloatAsState(
+                        targetValue = if (isSelected) 1.2f else 1.0f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                        label = "IconScale"
+                    )
+                    
+                    val contentColor by animateColorAsState(
+                        targetValue = if (isSelected) NeoNavy else NeoWhite.copy(alpha = 0.6f),
+                        label = "ContentColor"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(64.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null 
+                            ) { onTabSelected(tab) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = iconScale
+                                scaleY = iconScale
+                            }
+                        ) {
+                            Icon(
+                                imageVector = tab.icon,
+                                contentDescription = tab.label,
+                                tint = contentColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            AnimatedVisibility(
+                                visible = isSelected,
+                                enter = expandVertically() + fadeIn(),
+                                exit = shrinkVertically() + fadeOut()
+                            ) {
+                                Text(
+                                    text = tab.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Black,
+                                    color = contentColor,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -80,35 +80,13 @@ fun StudyScreen(
         }
     }
 
-    val labyrinthPainter = painterResource(id = R.drawable.labyrinth)
+    // --- Outer container: Pink background ---
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(NeoBackgroundPink)
-            .drawBehind {
-                val intrinsicSize = labyrinthPainter.intrinsicSize
-                if (intrinsicSize != androidx.compose.ui.geometry.Size.Unspecified) {
-                    val scaleX = size.width / intrinsicSize.width
-                    val scaleY = size.height / intrinsicSize.height
-                    val scale = maxOf(scaleX, scaleY)
-                    
-                    val drawWidth = intrinsicSize.width * scale
-                    val drawHeight = intrinsicSize.height * scale
-                    
-                    val offsetX = (size.width - drawWidth) / 2
-                    val offsetY = (size.height - drawHeight) / 2
-                    
-                    translate(offsetX, offsetY) {
-                        with(labyrinthPainter) {
-                            draw(
-                                size = androidx.compose.ui.geometry.Size(drawWidth, drawHeight),
-                                alpha = 0.2f
-                            )
-                        }
-                    }
-                }
-            }
+            .background(NeoBackgroundPink)
     ) {
         if (!isCompleted) {
             Surface(

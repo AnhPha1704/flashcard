@@ -26,14 +26,7 @@ fun SplashScreen(onComplete: () -> Unit) {
     }
 
     Box(modifier = Modifier.fillMaxSize().background(NeoBackgroundPink)) {
-        // Subtle Labyrinth texture for premium feel
-        Image(
-            painter = painterResource(id = R.drawable.labyrinth),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-            alpha = 0.15f
-        )
+        // Main container with brand color background
 
         // Center FLIP logo card
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

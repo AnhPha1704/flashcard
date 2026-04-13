@@ -33,14 +33,7 @@ fun LoginScreen(viewModel: AuthViewModel) {
 
     // --- Full-screen backdrop (kể cả status bar) ---
     Box(modifier = Modifier.fillMaxSize().background(NeoBackgroundPink)) {
-        // Labyrinth phủ toàn màn hình, kể cả vùng safe area
-        Image(
-            painter = painterResource(id = R.drawable.labyrinth),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-            alpha = 0.15f
-        )
+        // Full-screen solid background
 
         // Nội dung bên trong mới bị đẩy xuống dưới status bar
         Box(
