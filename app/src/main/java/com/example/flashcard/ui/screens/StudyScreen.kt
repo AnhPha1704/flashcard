@@ -30,6 +30,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flashcard.R
 import com.example.flashcard.ui.components.FlashcardCard
@@ -75,17 +79,42 @@ fun StudyScreen(
         }
     }
 
-    // --- Outer container: Labyrinth on Pink background ---
-    Box(modifier = Modifier.fillMaxSize().background(NeoBackgroundPink)) {
+    val labyrinthPainter = painterResource(id = R.drawable.labyrinth)
 
-        // === Labyrinth pattern for FULL screen backdrop ===
-        Image(
-            painter = painterResource(id = R.drawable.labyrinth),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-            alpha = 0.2f
-        )
+    // --- Outer container: Labyrinth on Pink background ---
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(NeoBackgroundPink)
+            .drawBehind {
+                // Optimized background drawing with proper aspect ratio (Crop)
+                val intrinsicSize = labyrinthPainter.intrinsicSize
+                if (intrinsicSize != androidx.compose.ui.geometry.Size.Unspecified) {
+                    val scaleX = size.width / intrinsicSize.width
+                    val scaleY = size.height / intrinsicSize.height
+                    val scale = maxOf(scaleX, scaleY)
+                    
+                    val drawWidth = intrinsicSize.width * scale
+                    val drawHeight = intrinsicSize.height * scale
+                    
+                    val offsetX = (size.width - drawWidth) / 2
+                    val offsetY = (size.height - drawHeight) / 2
+                    
+                    translate(offsetX, offsetY) {
+                        with(labyrinthPainter) {
+                            draw(
+                                size = androidx.compose.ui.geometry.Size(drawWidth, drawHeight),
+                                alpha = 0.2f
+                            )
+                        }
+                    }
+                } else {
+                    with(labyrinthPainter) {
+                        draw(size, alpha = 0.2f)
+                    }
+                }
+            }
+    ) {
 
         // === Rounded Pink Bottom Shelf (Only visible during study) ===
         if (!isCompleted) {
@@ -256,19 +285,41 @@ private fun StudyMainContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         
-        Row(
-            modifier = Modifier.fillMaxWidth().height(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        // --- Optimized Progress Bar (Canvas drawing) ---
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(12.dp)
         ) {
-            for (i in cards.indices) {
-                val color = if (i <= currentIndex) NeoNavy else NeoWhite
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .background(color, RoundedCornerShape(100))
-                        .border(BorderStroke(if (i <= currentIndex) 0.dp else 2.dp, NeoNavy), RoundedCornerShape(100))
-                )
+            val total = cards.size
+            if (total > 0) {
+                val spacing = 4.dp.toPx()
+                val itemWidth = (size.width - (total - 1) * spacing) / total
+                val cornerRadius = 100f
+
+                for (i in 0 until total) {
+                    val rectColor = if (i <= currentIndex) NeoNavy else NeoWhite
+                    val startX = i * (itemWidth + spacing)
+                    
+                    // Draw each segment
+                    drawRoundRect(
+                        color = rectColor,
+                        topLeft = androidx.compose.ui.geometry.Offset(startX, 0f),
+                        size = androidx.compose.ui.geometry.Size(itemWidth, size.height),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadius, cornerRadius)
+                    )
+                    
+                    // Draw border for unvisited items
+                    if (i > currentIndex) {
+                        drawRoundRect(
+                            color = NeoNavy,
+                            topLeft = androidx.compose.ui.geometry.Offset(startX, 0f),
+                            size = androidx.compose.ui.geometry.Size(itemWidth, size.height),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadius, cornerRadius),
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                        )
+                    }
+                }
             }
         }
 
@@ -517,7 +568,7 @@ private fun CompletionScreen(
             }
         }
 
-        // --- Confetti layer on TOP of everything (Proper Z-Order) ---
+        // --- Confetti layer on TOP of everything ---
         KonfettiView(
             modifier = Modifier.fillMaxSize().zIndex(100f),
             parties = parties,

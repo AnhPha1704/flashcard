@@ -58,7 +58,6 @@ fun HomeScreen(
             modifier = modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(NeoBackgroundPink)
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
