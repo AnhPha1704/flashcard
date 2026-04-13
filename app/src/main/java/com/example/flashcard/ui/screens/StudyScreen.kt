@@ -63,8 +63,9 @@ fun StudyScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val isCompleted by viewModel.isCompleted.collectAsState()
     val isTtsReady by ttsHelper.isReady.collectAsState()
+    val sessionLearnedCount by viewModel.sessionLearnedCount.collectAsState()
+    val sessionReviewCount by viewModel.sessionReviewCount.collectAsState()
 
-    // State to trigger external swipe
     var pendingSwipe by remember { mutableStateOf<SwipeDirection?>(null) }
 
     LaunchedEffect(cards, currentIndex, isTtsReady) {
@@ -81,13 +82,11 @@ fun StudyScreen(
 
     val labyrinthPainter = painterResource(id = R.drawable.labyrinth)
 
-    // --- Outer container: Labyrinth on Pink background ---
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(NeoBackgroundPink)
             .drawBehind {
-                // Optimized background drawing with proper aspect ratio (Crop)
                 val intrinsicSize = labyrinthPainter.intrinsicSize
                 if (intrinsicSize != androidx.compose.ui.geometry.Size.Unspecified) {
                     val scaleX = size.width / intrinsicSize.width
@@ -108,15 +107,9 @@ fun StudyScreen(
                             )
                         }
                     }
-                } else {
-                    with(labyrinthPainter) {
-                        draw(size, alpha = 0.2f)
-                    }
                 }
             }
     ) {
-
-        // === Rounded Pink Bottom Shelf (Only visible during study) ===
         if (!isCompleted) {
             Surface(
                 color = NeoBackgroundPink,
@@ -129,13 +122,12 @@ fun StudyScreen(
             ) {}
         }
 
-        // === Main content scaffold on top ===
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // --- Custom Top Bar ---
+            // Top Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -184,12 +176,7 @@ fun StudyScreen(
                 }
             }
 
-            // --- Content area ---
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            ) {
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 if (isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = NeoNavy, strokeWidth = 5.dp)
@@ -199,6 +186,8 @@ fun StudyScreen(
                 } else if (isCompleted) {
                     CompletionScreen(
                         totalCards = cards.size,
+                        learnedCount = sessionLearnedCount,
+                        reviewCount = sessionReviewCount,
                         onRestart = { viewModel.restartSession() },
                         onBack = onBack
                     )
@@ -219,13 +208,15 @@ fun StudyScreen(
                         },
                         onLearnedClick = { pendingSwipe = SwipeDirection.RIGHT },
                         onReviewClick = { pendingSwipe = SwipeDirection.LEFT },
-                        onSpeak = { text -> ttsHelper.speak(text) }
+                        onSpeak = { text -> ttsHelper.speak(text) },
+                        sessionLearnedCount = sessionLearnedCount,
+                        sessionReviewCount = sessionReviewCount
                     )
                 }
             }
         }
 
-        // --- TTS Loading Overlay ---
+        // TTS Overlay
         AnimatedVisibility(
             visible = !isTtsReady,
             enter = fadeIn(),
@@ -276,7 +267,9 @@ private fun StudyMainContent(
     onReviewComplete: () -> Unit,
     onLearnedClick: () -> Unit,
     onReviewClick: () -> Unit,
-    onSpeak: (String) -> Unit
+    onSpeak: (String) -> Unit,
+    sessionLearnedCount: Int,
+    sessionReviewCount: Int
 ) {
     Column(
         modifier = Modifier
@@ -284,39 +277,29 @@ private fun StudyMainContent(
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        
-        // --- Optimized Progress Bar (Canvas drawing) ---
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(12.dp)
-        ) {
+        // Progress Bar
+        Canvas(modifier = Modifier.fillMaxWidth().height(12.dp)) {
             val total = cards.size
             if (total > 0) {
                 val spacing = 4.dp.toPx()
                 val itemWidth = (size.width - (total - 1) * spacing) / total
                 val cornerRadius = 100f
-
                 for (i in 0 until total) {
                     val rectColor = if (i <= currentIndex) NeoNavy else NeoWhite
                     val startX = i * (itemWidth + spacing)
-                    
-                    // Draw each segment
                     drawRoundRect(
                         color = rectColor,
                         topLeft = androidx.compose.ui.geometry.Offset(startX, 0f),
                         size = androidx.compose.ui.geometry.Size(itemWidth, size.height),
                         cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadius, cornerRadius)
                     )
-                    
-                    // Draw border for unvisited items
                     if (i > currentIndex) {
                         drawRoundRect(
                             color = NeoNavy,
                             topLeft = androidx.compose.ui.geometry.Offset(startX, 0f),
                             size = androidx.compose.ui.geometry.Size(itemWidth, size.height),
                             cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadius, cornerRadius),
-                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                            style = Stroke(width = 2.dp.toPx())
                         )
                     }
                 }
@@ -325,13 +308,7 @@ private fun StudyMainContent(
 
         Spacer(modifier = Modifier.weight(0.05f))
 
-        // --- Card area ---
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             AnimatedContent(
                 targetState = currentIndex,
                 transitionSpec = {
@@ -347,7 +324,6 @@ private fun StudyMainContent(
                     onSwipeLeft = onReviewComplete,
                     onSwipeRight = onLearnedComplete,
                     externalSwipeTrigger = pendingSwipe,
-                    onSwipeComplete = { /* Handled by individual callbacks */ },
                     onSpeak = onSpeak
                 )
             }
@@ -355,23 +331,46 @@ private fun StudyMainContent(
 
         Spacer(modifier = Modifier.weight(0.05f))
 
-        // --- Forgot / Know buttons ---
-        StudyControls(
-            onReviewClick = onReviewClick,
-            onLearnedClick = onLearnedClick
-        )
+        // Mini session stats bubbles from feature
+        if (sessionLearnedCount > 0 || sessionReviewCount > 0) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+            ) {
+                if (sessionLearnedCount > 0) {
+                    Surface(color = Color(0xFF22C55E).copy(alpha = 0.15f), shape = RoundedCornerShape(20.dp)) {
+                        Text(
+                            text = "✓ $sessionLearnedCount đã thuộc",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color(0xFF22C55E),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                if (sessionReviewCount > 0) {
+                    Surface(color = Color(0xFFEF4444).copy(alpha = 0.15f), shape = RoundedCornerShape(20.dp)) {
+                        Text(
+                            text = "✗ $sessionReviewCount cần ôn",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color(0xFFEF4444),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        StudyControls(onReviewClick = onReviewClick, onLearnedClick = onLearnedClick)
     }
 }
 
 @Composable
-private fun StudyControls(
-    onReviewClick: () -> Unit,
-    onLearnedClick: () -> Unit
-) {
+private fun StudyControls(onReviewClick: () -> Unit, onLearnedClick: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 32.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
         horizontalArrangement = Arrangement.spacedBy(20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -379,12 +378,7 @@ private fun StudyControls(
         val learnedColor = Color(0xFFC7F4C2)
 
         Box(modifier = Modifier.weight(1f)) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .offset(x = 6.dp, y = 6.dp)
-                    .background(NeoNavy, RoundedCornerShape(16.dp))
-            )
+            Box(modifier = Modifier.matchParentSize().offset(x = 6.dp, y = 6.dp).background(NeoNavy, RoundedCornerShape(16.dp)))
             Surface(
                 onClick = onReviewClick,
                 color = reviewColor,
@@ -396,24 +390,14 @@ private fun StudyControls(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = "☹\uFE0F", fontSize = 24.sp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "QUÊN",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Black,
-                            color = NeoNavy
-                        )
+                        Text("QUÊN", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = NeoNavy)
                     }
                 }
             }
         }
 
         Box(modifier = Modifier.weight(1f)) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .offset(x = 6.dp, y = 6.dp)
-                    .background(NeoNavy, RoundedCornerShape(16.dp))
-            )
+            Box(modifier = Modifier.matchParentSize().offset(x = 6.dp, y = 6.dp).background(NeoNavy, RoundedCornerShape(16.dp)))
             Surface(
                 onClick = onLearnedClick,
                 color = learnedColor,
@@ -425,12 +409,7 @@ private fun StudyControls(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = "😃", fontSize = 24.sp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "THUỘC",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Black,
-                            color = NeoNavy
-                        )
+                        Text("THUỘC", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = NeoNavy)
                     }
                 }
             }
@@ -441,99 +420,63 @@ private fun StudyControls(
 @Composable
 private fun CompletionScreen(
     totalCards: Int,
+    learnedCount: Int,
+    reviewCount: Int,
     onRestart: () -> Unit,
     onBack: () -> Unit
 ) {
-    // Config for a single explosive burst from the top
     val parties = remember {
         listOf(
             Party(
                 speed = 0f,
                 maxSpeed = 25f,
                 damping = 0.9f,
-                angle = 90, // Hướng thẳng xuống dưới
-                spread = 120, // Tỏa rộng ra 2 bên
+                angle = 90,
+                spread = 120,
                 colors = listOf(0xFFFF9BAA.toInt(), 0xFFB4D2FF.toInt(), 0xFF2D336B.toInt(), 0xFFFFFFFF.toInt()),
-                emitter = Emitter(duration = 500, TimeUnit.MILLISECONDS).max(200), // Nổ dồn dập 200 hạt trong 0.5 giây
-                position = Position.Relative(0.5, -0.05) // Ném từ ngay mép trên màn hình
+                emitter = Emitter(duration = 500, TimeUnit.MILLISECONDS).max(200),
+                position = Position.Relative(0.5, -0.05)
             )
         )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
+            modifier = Modifier.fillMaxSize().padding(24.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(modifier = Modifier.fillMaxWidth()) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .offset(x = 10.dp, y = 10.dp)
-                        .background(NeoNavy, RoundedCornerShape(32.dp))
-                )
-                
+                Box(modifier = Modifier.matchParentSize().offset(x = 10.dp, y = 10.dp).background(NeoNavy, RoundedCornerShape(32.dp)))
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(32.dp),
                     color = NeoWhite,
                     border = BorderStroke(4.dp, NeoNavy)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Surface(
-                            modifier = Modifier.size(120.dp),
-                            shape = CircleShape,
-                            color = NeoBackgroundBlue,
-                            border = BorderStroke(4.dp, NeoNavy)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text("🏆", fontSize = 64.sp)
+                    Column(modifier = Modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Surface(modifier = Modifier.size(120.dp), shape = CircleShape, color = NeoBackgroundBlue, border = BorderStroke(4.dp, NeoNavy)) {
+                            Box(contentAlignment = Alignment.Center) { Text("🏆", fontSize = 64.sp) }
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(text = "TUYỆT VỜI!", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black, color = NeoNavy)
+                        
+                        // Summary info from feature
+                        Row(modifier = Modifier.padding(vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("$learnedCount", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color(0xFF22C55E))
+                                Text("Đã thuộc", style = MaterialTheme.typography.labelSmall)
+                            }
+                            Divider(modifier = Modifier.height(40.dp).width(1.dp), color = NeoNavy.copy(alpha = 0.2f))
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("$reviewCount", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color(0xFFEF4444))
+                                Text("Cần ôn", style = MaterialTheme.typography.labelSmall)
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        Text(
-                            text = "TUYỆT VỜI!",
-                            style = MaterialTheme.typography.displaySmall,
-                            fontWeight = FontWeight.Black,
-                            color = NeoNavy,
-                            textAlign = TextAlign.Center
-                        )
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Text(
-                            text = "Bạn đã hoàn thành",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = NeoNavy.copy(alpha = 0.6f),
-                            textAlign = TextAlign.Center
-                        )
-                        
-                        Text(
-                            text = "$totalCards thẻ",
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Black,
-                            color = NeoNavy,
-                            textAlign = TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(32.dp))
-
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Box(modifier = Modifier.fillMaxWidth()) {
-                                Box(
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .offset(x = 5.dp, y = 5.dp)
-                                        .background(NeoNavy, RoundedCornerShape(16.dp))
-                                )
+                                Box(modifier = Modifier.matchParentSize().offset(x = 5.dp, y = 5.dp).background(NeoNavy, RoundedCornerShape(16.dp)))
                                 Surface(
                                     onClick = onRestart,
                                     color = NeoBackgroundBlue,
@@ -545,84 +488,35 @@ private fun CompletionScreen(
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Icon(Icons.Default.Refresh, contentDescription = null, tint = NeoNavy)
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            Text("HỌC LẠI", fontSize = 16.sp, fontWeight = FontWeight.Black, color = NeoNavy)
+                                            Text("HỌC LẠI", fontWeight = FontWeight.Black, color = NeoNavy)
                                         }
                                     }
                                 }
                             }
-
-                            Surface(
-                                onClick = onBack,
-                                color = NeoWhite,
-                                shape = RoundedCornerShape(16.dp),
-                                border = BorderStroke(3.dp, NeoNavy),
-                                modifier = Modifier.fillMaxWidth().height(56.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text("VỀ TRANG CHỦ", fontSize = 16.sp, fontWeight = FontWeight.Black, color = NeoNavy)
-                                }
+                            Surface(onClick = onBack, color = NeoWhite, shape = RoundedCornerShape(16.dp), border = BorderStroke(3.dp, NeoNavy), modifier = Modifier.fillMaxWidth().height(56.dp)) {
+                                Box(contentAlignment = Alignment.Center) { Text("VỀ TRANG CHỦ", fontWeight = FontWeight.Black, color = NeoNavy) }
                             }
                         }
                     }
                 }
             }
         }
-
-        // --- Confetti layer on TOP of everything ---
-        KonfettiView(
-            modifier = Modifier.fillMaxSize().zIndex(100f),
-            parties = parties,
-        )
+        KonfettiView(modifier = Modifier.fillMaxSize().zIndex(100f), parties = parties)
     }
 }
 
 @Composable
 private fun EmptyStudyState(onBack: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text = "😅", fontSize = 80.sp)
         Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            text = "CHƯA CÓ THẺ NÀO!",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Black,
-            color = NeoNavy
-        )
-        Text(
-            text = "Hãy thêm thẻ vào bộ này trước nhé.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = NeoNavy.copy(alpha = 0.8f),
-            modifier = Modifier.padding(top = 8.dp)
-        )
-        
+        Text(text = "CHƯA CÓ THẺ NÀO!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black, color = NeoNavy)
+        Text(text = "Hãy thêm thẻ vào bộ này trước nhé.", style = MaterialTheme.typography.bodyLarge, color = NeoNavy.copy(alpha = 0.8f), modifier = Modifier.padding(top = 8.dp))
         Spacer(modifier = Modifier.height(48.dp))
-        
         Box {
-             Box(
-                modifier = Modifier
-                    .width(200.dp)
-                    .height(56.dp)
-                    .offset(x = 4.dp, y = 4.dp)
-                    .background(NeoNavy, RoundedCornerShape(16.dp))
-            )
-            Surface(
-                onClick = onBack,
-                color = NeoWhite,
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(3.dp, NeoNavy),
-                modifier = Modifier.width(200.dp).height(56.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        "QUAY LẠI",
-                        fontWeight = FontWeight.Black,
-                        color = NeoNavy,
-                        fontSize = 18.sp
-                    )
-                }
+             Box(modifier = Modifier.width(200.dp).height(56.dp).offset(x = 4.dp, y = 4.dp).background(NeoNavy, RoundedCornerShape(16.dp)))
+            Surface(onClick = onBack, color = NeoWhite, shape = RoundedCornerShape(16.dp), border = BorderStroke(3.dp, NeoNavy), modifier = Modifier.width(200.dp).height(56.dp)) {
+                Box(contentAlignment = Alignment.Center) { Text("QUAY LẠI", fontWeight = FontWeight.Black, color = NeoNavy, fontSize = 18.sp) }
             }
         }
     }

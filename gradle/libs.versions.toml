@@ -13,6 +13,7 @@ ksp = "2.2.10-2.0.2"
 room = "2.6.1"
 work = "2.10.0"
 hiltWork = "1.2.0"
+hiltNavigationCompose = "1.2.0"
 firebaseBom = "33.9.0"
 konfetti = "2.0.4"
 
@@ -44,6 +45,7 @@ room-testing = { group = "androidx.room", name = "room-testing", version.ref = "
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
 androidx-hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hiltWork" }
 androidx-hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hiltWork" }
+androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 
 # Firebase
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }

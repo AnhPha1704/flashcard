@@ -2,6 +2,8 @@ package com.example.flashcard.domain.repository
 
 import com.example.flashcard.data.local.entity.Deck
 import com.example.flashcard.data.local.entity.Flashcard
+import com.example.flashcard.domain.model.StatsOverview
+import com.example.flashcard.domain.model.DayStudyCount
 import kotlinx.coroutines.flow.Flow
 
 interface FlashcardRepository {
@@ -20,5 +22,10 @@ interface FlashcardRepository {
     suspend fun updateFlashcard(flashcard: Flashcard): Int
     suspend fun deleteFlashcard(flashcard: Flashcard): Int
     fun getCardsToReview(deckId: Int, currentTime: Long): Flow<List<Flashcard>>
+    suspend fun recordStudyEvent(flashcard: Flashcard, quality: Int)
     suspend fun syncAllData()
+
+    // Statistics
+    fun getStatsOverview(): Flow<StatsOverview>
+    fun getStudyHistoryLast7Days(): Flow<List<DayStudyCount>>
 }
