@@ -14,7 +14,7 @@ interface StudyLogDao {
     @Query("""
         SELECT COUNT(DISTINCT cardId) AS count
         FROM study_logs 
-        WHERE quality = 1 AND timestamp >= :startOfDay
+        WHERE quality >= 0 AND timestamp >= :startOfDay
     """)
     fun getTodayLearnedCount(startOfDay: Long): Flow<Int>
 
@@ -27,7 +27,7 @@ interface StudyLogDao {
             strftime('%Y-%m-%d', datetime(timestamp / 1000, 'unixepoch', 'localtime')) AS dayString,
             COUNT(DISTINCT cardId) AS count
         FROM study_logs
-        WHERE quality = 1 AND timestamp >= :since
+        WHERE quality >= 0 AND timestamp >= :since
         GROUP BY dayString
         ORDER BY dayString ASC
     """)
@@ -37,7 +37,7 @@ interface StudyLogDao {
     @Query("""
         SELECT strftime('%Y-%m-%d', datetime(timestamp / 1000, 'unixepoch', 'localtime')) AS dayString
         FROM study_logs 
-        WHERE quality = 1 
+        WHERE quality >= 0 
         GROUP BY dayString
         ORDER BY dayString DESC
     """)
