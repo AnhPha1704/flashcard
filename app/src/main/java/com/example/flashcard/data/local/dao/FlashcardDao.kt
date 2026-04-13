@@ -74,4 +74,40 @@ interface FlashcardDao {
         ORDER BY dayString DESC
     """)
     fun getDistinctStudyDays(): Flow<List<String>>
+
+    /**
+     * DỰ BÁO ÔN TẬP: Lấy số lượng thẻ sẽ đến hạn trong tương lai (7 ngày tới).
+     */
+    @Query("""
+        SELECT 
+            strftime('%Y-%m-%d', datetime(nextReview / 1000, 'unixepoch', 'localtime')) AS dayString,
+            COUNT(*) AS count
+        FROM flashcards
+        WHERE repetitions > 0 AND nextReview >= :since
+        GROUP BY dayString
+        ORDER BY dayString ASC
+        LIMIT 10
+    """)
+    fun getReviewForecast(since: Long): Flow<List<com.example.flashcard.data.local.entity.DayCount>>
+
+    /** Lấy TẤT CẢ các thẻ đến hạn từ mọi bộ thẻ */
+    @Query("SELECT * FROM flashcards WHERE nextReview <= :currentTime")
+    fun getAllCardsToReview(currentTime: Long): Flow<List<Flashcard>>
+
+    /** Lấy thời điểm nextReview nhỏ nhất mà lớn hơn currentTime (thẻ sắp đến hạn nhất) */
+    @Query("SELECT MIN(nextReview) FROM flashcards WHERE nextReview > :currentTime")
+    fun getNearestUpcomingReview(currentTime: Long): Flow<Long?>
+
+    /** DEBUG: Ép thẻ sắp đến hạn nhất thành đã đến hạn ngay lập tức */
+    @Query("""
+        UPDATE flashcards 
+        SET nextReview = :currentTime - 1000 
+        WHERE id = (
+            SELECT id FROM flashcards 
+            WHERE nextReview > :currentTime 
+            ORDER BY nextReview ASC 
+            LIMIT 1
+        )
+    """)
+    suspend fun makeNearestCardDue(currentTime: Long): Int
 }

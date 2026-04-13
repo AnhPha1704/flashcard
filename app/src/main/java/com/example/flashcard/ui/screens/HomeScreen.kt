@@ -1,9 +1,13 @@
 package com.example.flashcard.ui.screens
 
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -23,10 +27,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.*
+import com.example.flashcard.domain.model.DayStudyCount
 import com.example.flashcard.domain.model.StatsOverview
 import com.example.flashcard.data.local.entity.DeckWithCount
 import com.example.flashcard.ui.theme.*
 import com.example.flashcard.ui.viewmodel.HomeViewModel
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import kotlin.math.max
 
 @Composable
 fun HomeScreen(
@@ -36,55 +46,77 @@ fun HomeScreen(
     val stats by viewModel.statsOverview.collectAsState()
     val dueDecks by viewModel.dueDecks.collectAsState()
     val totalDue by viewModel.totalDueCount.collectAsState()
+    val srsInsight by viewModel.srsInsight.collectAsState()
+    val countdownText by viewModel.countdownText.collectAsState()
+    val isAllCaughtUp by viewModel.isAllCaughtUp.collectAsState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         // --- Header ---
         HeaderSection()
 
-        // --- Streak & Goal Card ---
-        StreakDashboardCard(stats = stats)
+        // --- Quick Badges (Streak & Today) ---
+        QuickStatsBadges(stats = stats)
 
-        // --- Important Notice (Due Cards) ---
-        if (totalDue > 0) {
-            DueSummaryCard(totalDue = totalDue)
-        }
+        // --- Master Action Card (Global Study) ---
+        GlobalStudyCard(
+            totalDue = totalDue, 
+            countdownText = countdownText,
+            onClick = { onDeckClick(-1) },
+            onLongPress = { viewModel.triggerDebugDue() }
+        )
 
-        // --- Main Sections ---
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(
-                text = "CẦN ÔN NGAY 🔥",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Black,
-                color = NeoNavy
-            )
+        // --- Smart SRS Insight ---
+        SRSInsightCard(insight = srsInsight)
+
+        // --- Decks Section ---
+        if (dueDecks.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (!isAllCaughtUp) "CÁC BỘ THẺ ĐẾN HẠN" else "BỘ THẺ CỦA BẠN",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Black,
+                    color = NeoNavy.copy(alpha = 0.6f)
+                )
+                Text(
+                    text = "XEM TẤT CẢ →",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Black,
+                    color = NeoNavy,
+                    modifier = Modifier.clickable { 
+                        // Điều hướng sang tab DECKS sẽ được xử lý ở MainActivity thông qua callback tab
+                    }
+                )
+            }
             
-            if (dueDecks.isEmpty()) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = NeoWhite,
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(2.dp, NeoNavy)
-                ) {
-                    Text(
-                        "Tuyệt quá! Bạn đã hoàn thành hết các thẻ cần ôn rồi. 🚀",
-                        modifier = Modifier.padding(20.dp),
-                        textAlign = TextAlign.Center,
-                        fontWeight = FontWeight.Bold,
-                        color = NeoNavy.copy(alpha = 0.6f)
-                    )
-                }
-            } else {
-                dueDecks.forEach { deckWithCount ->
-                    HomeDeckItem(
-                        deckWithCount = deckWithCount,
-                        onClick = { onDeckClick(deckWithCount.deck.id) }
-                    )
+            // Grid layout for decks
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                dueDecks.chunked(2).forEach { rowDecks ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        rowDecks.forEach { deckWithCount ->
+                            HomeDeckGridItem(
+                                modifier = Modifier.weight(1f),
+                                deckWithCount = deckWithCount,
+                                onClick = { onDeckClick(deckWithCount.deck.id) }
+                            )
+                        }
+                        // Fill empty space if odd number
+                        if (rowDecks.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
                 }
             }
         }
@@ -117,8 +149,76 @@ private fun HeaderSection() {
 }
 
 @Composable
-private fun StreakDashboardCard(stats: StatsOverview) {
+private fun QuickStatsBadges(stats: StatsOverview) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Streak Badge
+        BadgeBox(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Default.LocalFireDepartment,
+            value = "${stats.streak} ngày",
+            label = "Chuỗi học",
+            color = Color(0xFFFF9BAA)
+        )
+        // Today Badge
+        BadgeBox(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Default.CheckCircle,
+            value = "${stats.todayStudied}/${stats.dailyGoal}",
+            label = "Hôm nay",
+            color = NeoBackgroundBlue
+        )
+    }
+}
+
+@Composable
+private fun BadgeBox(
+    modifier: Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String,
+    label: String,
+    color: Color
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(2.dp, NeoNavy),
+        color = NeoWhite
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier.size(32.dp),
+                shape = CircleShape,
+                color = color,
+                border = BorderStroke(1.5.dp, NeoNavy)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = NeoNavy)
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            Column {
+                Text(text = value, fontSize = 14.sp, fontWeight = FontWeight.Black, color = NeoNavy)
+                Text(text = label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = NeoNavy.copy(alpha = 0.5f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun GlobalStudyCard(
+    totalDue: Int, 
+    countdownText: String?, 
+    onClick: () -> Unit,
+    onLongPress: () -> Unit
+) {
     Box(modifier = Modifier.fillMaxWidth()) {
+        // Shadow
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -128,108 +228,104 @@ private fun StreakDashboardCard(stats: StatsOverview) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            color = NeoWhite,
+            color = if (totalDue > 0) Color(0xFFFFD54F) else NeoWhite,
             border = BorderStroke(3.dp, NeoNavy)
         ) {
-            Row(
-                modifier = Modifier.padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "CHUỖI HỌC TẬP",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Black,
-                        color = NeoNavy.copy(alpha = 0.5f)
-                    )
-                    Text(
-                        text = "${stats.streak} Ngày",
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Black,
-                        color = NeoNavy
-                    )
-                    
-                    val progress = (stats.todayStudied.toFloat() / stats.dailyGoal.toFloat()).coerceIn(0f, 1f)
-                    
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        text = "Mục tiêu ngày: ${stats.todayStudied}/${stats.dailyGoal} thẻ",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = NeoNavy
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(12.dp)
-                            .background(NeoNavy.copy(alpha = 0.1f), RoundedCornerShape(100))
-                            .border(BorderStroke(2.dp, NeoNavy), RoundedCornerShape(100))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(progress)
-                                .fillMaxHeight()
-                                .background(NeoBackgroundBlue, RoundedCornerShape(100))
-                        )
-                    }
-                }
-                
-                Spacer(Modifier.width(16.dp))
-                
-                Surface(
-                    modifier = Modifier.size(70.dp),
-                    shape = CircleShape,
-                    color = Color(0xFFFF9BAA),
-                    border = BorderStroke(3.dp, NeoNavy)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = NeoNavy, modifier = Modifier.size(36.dp))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DueSummaryCard(totalDue: Int) {
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .offset(4.dp, 4.dp)
-                .background(NeoNavy, RoundedCornerShape(16.dp))
-        )
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            color = Color(0xFFFFD54F), // Vàng cảnh báo
-            border = BorderStroke(3.dp, NeoNavy)
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.NotificationImportant, contentDescription = null, tint = NeoNavy, modifier = Modifier.size(32.dp))
-                Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.padding(24.dp)) {
                 Text(
-                    text = "Bạn có $totalDue thẻ đã đến hạn ôn tập. Hãy học ngay để không bị quên nhé!",
+                    text = if (totalDue > 0) "BẠN ĐÃ SẴN SÀNG CHƯA?" else "MỤC TIÊU ĐÃ XONG! 🎉",
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Black,
-                    fontSize = 14.sp,
                     color = NeoNavy
                 )
+                Spacer(Modifier.height(8.dp))
+                
+                if (totalDue > 0) {
+                    Text(
+                        text = "Bạn có $totalDue thẻ đang chờ được ôn tập. Học ngay để ghi nhớ lâu hơn nhé!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = NeoNavy.copy(alpha = 0.7f)
+                    )
+                    Spacer(Modifier.height(24.dp))
+                    Button(
+                        onClick = onClick,
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NeoNavy),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text("HỌC TẤT CẢ NGAY", fontWeight = FontWeight.Black, fontSize = 16.sp, color = NeoWhite)
+                        Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Default.PlayArrow, contentDescription = null)
+                    }
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(NeoBackgroundBlue.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                            .border(BorderStroke(1.5.dp, NeoNavy), RoundedCornerShape(12.dp))
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = { onLongPress() }
+                                )
+                            }
+                            .padding(16.dp)
+                    ) {
+                        Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = NeoNavy)
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Thẻ tiếp theo sẽ xuất hiện sau:",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeoNavy.copy(alpha = 0.6f)
+                            )
+                            Text(
+                                text = countdownText ?: "Chưa có lịch mới",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Black,
+                                color = NeoNavy
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun HomeDeckItem(
+private fun SRSInsightCard(insight: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = NeoBackgroundPink.copy(alpha = 0.3f),
+        border = BorderStroke(2.dp, NeoNavy)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Lightbulb, contentDescription = null, tint = Color(0xFFF59E0B))
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = insight,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = NeoNavy
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeDeckGridItem(
+    modifier: Modifier = Modifier,
     deckWithCount: DeckWithCount,
     onClick: () -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxWidth()) {
+    Box(modifier = modifier) {
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -243,31 +339,27 @@ private fun HomeDeckItem(
             color = NeoWhite,
             border = BorderStroke(2.dp, NeoNavy)
         ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = deckWithCount.deck.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    fontWeight = FontWeight.Black,
+                    color = NeoNavy
+                )
+                Spacer(Modifier.height(8.dp))
+                Surface(
+                    color = NeoBackgroundPink.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
                     Text(
-                        text = deckWithCount.deck.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Black,
+                        text = "${deckWithCount.dueCount} thẻ",
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
                         color = NeoNavy
                     )
-                    Spacer(Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(color = NeoBackgroundPink.copy(alpha = 0.5f), shape = RoundedCornerShape(6.dp)) {
-                           Text(
-                               text = "${deckWithCount.dueCount} cần ôn",
-                               modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                               fontSize = 11.sp,
-                               fontWeight = FontWeight.Bold,
-                               color = NeoNavy
-                           )
-                        }
-                    }
                 }
-                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = NeoNavy)
             }
         }
     }

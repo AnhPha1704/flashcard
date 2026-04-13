@@ -51,15 +51,20 @@ class StudyViewModel @Inject constructor(
             _sessionLearnedCount.value = 0
             _sessionReviewCount.value = 0
             
-            val flow = when (mode) {
-                com.example.flashcard.StudyMode.DUE -> 
-                    repository.getCardsToReview(deckId, System.currentTimeMillis())
-                com.example.flashcard.StudyMode.NEW -> 
-                    repository.getNewCards(deckId)
-                com.example.flashcard.StudyMode.FORGOTTEN -> 
-                    repository.getForgottenCards(deckId)
-                else -> 
-                    repository.getFlashcardsByDeck(deckId)
+            val flow = if (deckId == -1) {
+                // Chế độ Ôn tập toàn cục (tất cả thẻ đến hạn từ mọi bộ thẻ)
+                repository.getAllCardsToReview(System.currentTimeMillis())
+            } else {
+                when (mode) {
+                    com.example.flashcard.StudyMode.DUE -> 
+                        repository.getCardsToReview(deckId, System.currentTimeMillis())
+                    com.example.flashcard.StudyMode.NEW -> 
+                        repository.getNewCards(deckId)
+                    com.example.flashcard.StudyMode.FORGOTTEN -> 
+                        repository.getForgottenCards(deckId)
+                    else -> 
+                        repository.getFlashcardsByDeck(deckId)
+                }
             }
             
             // Sử dụng first() để lấy Snapshot dữ liệu (không lấy luồng trực tiếp)
