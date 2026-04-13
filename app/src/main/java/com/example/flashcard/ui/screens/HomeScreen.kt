@@ -49,6 +49,11 @@ fun HomeScreen(
     val srsInsight by viewModel.srsInsight.collectAsState()
     val countdownText by viewModel.countdownText.collectAsState()
     val isAllCaughtUp by viewModel.isAllCaughtUp.collectAsState()
+    
+    // Tự động làm mới mốc thời gian khi quay lại màn hình Home
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
+    }
 
     Column(
         modifier = Modifier
@@ -348,15 +353,17 @@ private fun HomeDeckGridItem(
                     color = NeoNavy
                 )
                 Spacer(Modifier.height(8.dp))
+                val isDone = deckWithCount.dueCount == 0
                 Surface(
-                    color = NeoBackgroundPink.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(6.dp)
+                    color = if (isDone) NeoBackgroundBlue.copy(alpha = 0.5f) else NeoBackgroundPink.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(6.dp),
+                    border = if (isDone) BorderStroke(1.dp, NeoNavy.copy(alpha = 0.3f)) else null
                 ) {
                     Text(
-                        text = "${deckWithCount.dueCount} thẻ",
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        text = if (isDone) "ĐÃ XONG ✨" else "${deckWithCount.dueCount} thẻ",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Black,
                         color = NeoNavy
                     )
                 }

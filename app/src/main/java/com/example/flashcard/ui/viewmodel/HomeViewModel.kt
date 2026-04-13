@@ -32,9 +32,14 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             while (true) {
                 kotlinx.coroutines.delay(1000 * 60)
-                _currentTime.value = System.currentTimeMillis()
+                refresh()
             }
         }
+    }
+
+    /** Làm mới mốc thời gian truy vấn để cập nhật dữ liệu SRS ngay lập tức */
+    fun refresh() {
+        _currentTime.value = System.currentTimeMillis()
     }
 
     /** Danh sách các bộ thẻ hiển thị trên Dashboard (Ưu tiên thẻ đến hạn, nếu không có thì hiện bộ thẻ gần đây) */
@@ -130,7 +135,8 @@ class HomeViewModel @Inject constructor(
         when {
             hours > 24 -> "${hours / 24} ngày nữa"
             hours > 0 -> "${hours}h ${minutes}m"
-            else -> "${minutes} phút"
+            minutes > 0 -> "${minutes} phút"
+            else -> "Dưới 1 phút"
         }
     }.stateIn(
         scope = viewModelScope,

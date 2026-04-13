@@ -12,8 +12,8 @@ interface DeckDao {
     @Query("""
         SELECT decks.*, 
         (SELECT COUNT(id) FROM flashcards WHERE deckId = decks.id) as totalCount,
-        (SELECT COUNT(id) FROM flashcards WHERE deckId = decks.id AND repetitions > 0 AND nextReview <= :currentTime) as dueCount,
-        (SELECT COUNT(id) FROM flashcards WHERE deckId = decks.id AND repetitions = 0) as newCount,
+        (SELECT COUNT(id) FROM flashcards WHERE deckId = decks.id AND nextReview <= :currentTime) as dueCount,
+        (SELECT COUNT(id) FROM flashcards WHERE deckId = decks.id AND repetitions = 0 AND nextReview > :currentTime) as newCount,
         (SELECT COUNT(id) FROM flashcards WHERE deckId = decks.id AND repetitions < 0) as forgottenCount
         FROM decks ORDER BY createdAt DESC
     """)

@@ -43,7 +43,13 @@ object SM2Logic {
         if (ef < 1.3f) ef = 1.3f
 
         // Tính ngày ôn tập tiếp theo: milliseconds = days * 24h * 60m * 60s * 1000ms
-        val nextReview = System.currentTimeMillis() + (interval.toLong() * 24 * 60 * 60 * 1000)
+        var nextReview = System.currentTimeMillis() + (interval.toLong() * 24 * 60 * 60 * 1000)
+
+        // Đặc biệt: Nếu nhấn Quên (quality < 3), hẹn gặp lại sau 1 phút thay vì 0 giây
+        // Điều này giúp hiển thị đồng hồ đếm ngược trên Dashboard
+        if (quality < 3) {
+            nextReview = System.currentTimeMillis() + 60_000L
+        }
 
         return card.copy(
             repetitions = n,
