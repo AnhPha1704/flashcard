@@ -76,6 +76,12 @@ val EmeraldEnd = Color(0xFF38EF7D)
 val BerryStart = Color(0xFFB22222)
 val BerryEnd = Color(0xFFFF00FF)
 
+// --- Neo-Brutalist Palette ---
+val NeoNavy = Color(0xFF2D336B)
+val NeoBackgroundPink = Color(0xFFFFE5E5)
+val NeoBackgroundBlue = Color(0xFFB4D2FF)
+val NeoWhite = Color(0xFFFFFFFF)
+
 // Gradient List Helper
 val AppGradients = listOf(
     listOf(OceanStart, OceanEnd),

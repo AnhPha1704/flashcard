@@ -27,19 +27,19 @@ interface FlashcardDao {
 
     // ===== THỐNG KÊ =====
 
-    @Query("SELECT COUNT(*) FROM flashcards")
+    @Query("SELECT COUNT(*) AS count FROM flashcards")
     fun getTotalCardCount(): Flow<Int>
 
     /** Thẻ đã học (Easy): repetitions >= 1 */
-    @Query("SELECT COUNT(*) FROM flashcards WHERE repetitions >= 1")
+    @Query("SELECT COUNT(*) AS count FROM flashcards WHERE repetitions >= 1")
     fun getEasyCardCount(): Flow<Int>
 
     /** Thẻ chưa học / cần học lại (Hard): repetitions == 0 */
-    @Query("SELECT COUNT(*) FROM flashcards WHERE repetitions = 0")
+    @Query("SELECT COUNT(*) AS count FROM flashcards WHERE repetitions = 0")
     fun getHardCardCount(): Flow<Int>
 
     /** Số thẻ được ôn tập hôm nay (lastModified trong khoảng ngày hôm nay) */
-    @Query("SELECT COUNT(*) FROM flashcards WHERE lastModified >= :startOfDay AND repetitions >= 1")
+    @Query("SELECT COUNT(*) AS count FROM flashcards WHERE lastModified >= :startOfDay AND repetitions >= 1")
     fun getTodayStudiedCount(startOfDay: Long): Flow<Int>
 
     /**
@@ -58,6 +58,12 @@ interface FlashcardDao {
     fun getStudyHistorySince(since: Long): Flow<List<DayCount>>
 
     /** Lấy tất cả flashcard để tính streak */
-    @Query("SELECT DISTINCT (lastModified / 86400000) FROM flashcards WHERE repetitions >= 1 ORDER BY 1 DESC")
+    @Query("""
+        SELECT (lastModified / 86400000) AS dayIndex 
+        FROM flashcards 
+        WHERE repetitions >= 1 
+        GROUP BY dayIndex 
+        ORDER BY dayIndex DESC
+    """)
     fun getDistinctStudyDays(): Flow<List<Long>>
 }

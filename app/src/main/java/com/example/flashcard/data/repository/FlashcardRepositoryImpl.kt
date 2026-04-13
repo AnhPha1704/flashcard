@@ -2,8 +2,10 @@ package com.example.flashcard.data.repository
 
 import com.example.flashcard.data.local.dao.DeckDao
 import com.example.flashcard.data.local.dao.FlashcardDao
+import com.example.flashcard.data.local.dao.StudyLogDao
 import com.example.flashcard.data.local.entity.Deck
 import com.example.flashcard.data.local.entity.Flashcard
+import com.example.flashcard.data.local.entity.StudyLog
 import com.example.flashcard.domain.model.DayStudyCount
 import com.example.flashcard.domain.model.StatsOverview
 import com.example.flashcard.domain.repository.FlashcardRepository
@@ -20,6 +22,7 @@ import javax.inject.Singleton
 class FlashcardRepositoryImpl @Inject constructor(
     private val deckDao: DeckDao,
     private val flashcardDao: FlashcardDao,
+    private val studyLogDao: StudyLogDao,
     private val firestoreDataSource: FirestoreDataSource
 ) : FlashcardRepository {
 
@@ -111,6 +114,28 @@ class FlashcardRepositoryImpl @Inject constructor(
     override fun getCardsToReview(deckId: Int, currentTime: Long): Flow<List<Flashcard>> =
         flashcardDao.getCardsToReview(deckId, currentTime)
 
+    override suspend fun recordStudyEvent(flashcard: Flashcard, quality: Int) {
+        // 1. Cập nhật thẻ flashcard (SM-2 logic sẽ được thực hiện ở ViewModel hoặc Repo tùy thiết kế)
+        flashcardDao.updateFlashcard(flashcard.copy(lastModified = System.currentTimeMillis()))
+        
+        // 2. Ghi log học tập
+        val log = StudyLog(
+            cardId = flashcard.id,
+            quality = quality,
+            deckId = flashcard.deckId,
+            timestamp = System.currentTimeMillis()
+        )
+        studyLogDao.insertStudyLog(log)
+        
+        // 3. Đồng bộ (Async)
+        try {
+            firestoreDataSource.syncFlashcard(flashcard)
+            // (Tùy chọn: Đồng bộ cả log lên cloud nếu Firestore hỗ trợ)
+        } catch (e: Exception) {
+            Log.e("FlashcardRepo", "Lỗi đồng bộ trong recordStudyEvent", e)
+        }
+    }
+
     override suspend fun syncAllData() {
         try {
             val cloudDecks = firestoreDataSource.getAllDecks()
@@ -143,16 +168,16 @@ class FlashcardRepositoryImpl @Inject constructor(
             flashcardDao.getTotalCardCount(),
             flashcardDao.getEasyCardCount(),
             flashcardDao.getHardCardCount(),
-            flashcardDao.getTodayStudiedCount(startOfToday),
-            flashcardDao.getDistinctStudyDays()
-        ) { total, easy, hard, todayStudied, studyDays ->
+            studyLogDao.getTodayLearnedCount(startOfToday), // Lấy chính xác từ Log
+            studyLogDao.getDistinctStudyDays() // Tính Streak từ Log sẽ bền vững hơn
+        ) { total, easy, hard, todayLearned, studyDays ->
             val streak = calculateStreak(studyDays)
             StatsOverview(
                 totalCards = total,
                 easyCards = easy,
                 hardCards = hard,
                 streak = streak,
-                todayStudied = todayStudied,
+                todayStudied = todayLearned,
                 dailyGoal = 10
             )
         }
@@ -160,7 +185,7 @@ class FlashcardRepositoryImpl @Inject constructor(
 
     override fun getStudyHistoryLast7Days(): Flow<List<DayStudyCount>> {
         val sevenDaysAgo = System.currentTimeMillis() - (7L * 24 * 60 * 60 * 1000)
-        return flashcardDao.getStudyHistorySince(sevenDaysAgo).map { list ->
+        return studyLogDao.getStudyHistorySince(sevenDaysAgo).map { list ->
             list.map { DayStudyCount(it.dayTimestamp, it.count) }
         }
     }

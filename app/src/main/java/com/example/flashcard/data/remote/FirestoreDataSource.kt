@@ -5,6 +5,7 @@ import android.content.Context
 import android.provider.Settings
 import com.example.flashcard.data.local.entity.Deck
 import com.example.flashcard.data.local.entity.Flashcard
+import com.example.flashcard.data.local.entity.StudyLog
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.tasks.await
@@ -37,6 +38,13 @@ class FirestoreDataSource @Inject constructor(
             .collection("flashcards")
             .document(flashcard.id.toString())
             .set(flashcard)
+            .await()
+    }
+
+    suspend fun syncStudyLog(log: StudyLog) {
+        userDoc.collection("study_logs")
+            .document(log.timestamp.toString()) // Sử dụng timestamp làm ID duy nhất cho log
+            .set(log)
             .await()
     }
 

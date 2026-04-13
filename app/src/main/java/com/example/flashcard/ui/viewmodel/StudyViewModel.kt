@@ -67,7 +67,7 @@ class StudyViewModel @Inject constructor(
                 repetitions = card.repetitions + 1,
                 lastModified = System.currentTimeMillis()
             )
-            repository.updateFlashcard(updatedCard)
+            repository.recordStudyEvent(updatedCard, 1) // Thay vì chỉ updateFlashcard
             // Cập nhật list local để UI phản ánh ngay
             _cards.value = _cards.value.toMutableList().also { it[index] = updatedCard }
             _sessionLearnedCount.value += 1
@@ -88,7 +88,7 @@ class StudyViewModel @Inject constructor(
                 repetitions = 0,
                 lastModified = System.currentTimeMillis()
             )
-            repository.updateFlashcard(updatedCard)
+            repository.recordStudyEvent(updatedCard, 0) // Thay vì chỉ updateFlashcard
             _cards.value = _cards.value.toMutableList().also { it[index] = updatedCard }
             _sessionReviewCount.value += 1
         }

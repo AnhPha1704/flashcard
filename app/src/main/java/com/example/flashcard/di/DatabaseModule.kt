@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.example.flashcard.data.local.AppDatabase
 import com.example.flashcard.data.local.dao.DeckDao
 import com.example.flashcard.data.local.dao.FlashcardDao
+import com.example.flashcard.data.local.dao.StudyLogDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,5 +37,10 @@ object DatabaseModule {
     @Provides
     fun provideFlashcardDao(database: AppDatabase): FlashcardDao {
         return database.flashcardDao()
+    }
+
+    @Provides
+    fun provideStudyLogDao(database: AppDatabase): StudyLogDao {
+        return database.studyLogDao()
     }
 }
