@@ -38,8 +38,8 @@ class FlashcardRepositoryImpl @Inject constructor(
 
     override fun getAllDecks(): Flow<List<Deck>> = deckDao.getAllDecks()
 
-    override fun getAllDecksWithCount(): Flow<List<com.example.flashcard.data.local.entity.DeckWithCount>> =
-        deckDao.getAllDecksWithCount()
+    override fun getAllDecksWithCount(currentTime: Long): Flow<List<com.example.flashcard.data.local.entity.DeckWithCount>> =
+        deckDao.getAllDecksWithCount(currentTime)
 
     override suspend fun getDeckById(id: Int): Deck? = deckDao.getDeckById(id)
 
@@ -128,11 +128,20 @@ class FlashcardRepositoryImpl @Inject constructor(
     override fun getCardsToReview(deckId: Int, currentTime: Long): Flow<List<Flashcard>> =
         flashcardDao.getCardsToReview(deckId, currentTime)
 
+    override fun getNewCards(deckId: Int): Flow<List<Flashcard>> =
+        flashcardDao.getNewCards(deckId)
+
+    override fun getForgottenCards(deckId: Int): Flow<List<Flashcard>> =
+        flashcardDao.getForgottenCards(deckId)
+
     override suspend fun recordStudyEvent(flashcard: Flashcard, quality: Int) {
-        // 1. Cập nhật thẻ flashcard
-        flashcardDao.updateFlashcard(flashcard.copy(lastModified = System.currentTimeMillis()))
+        // 1. Tính toán logic SM2 thông qua lớp tiện ích
+        val updatedCard = com.example.flashcard.utils.SM2Logic.calculate(flashcard, quality)
         
-        // 2. Ghi log học tập
+        // 2. Cập nhật thẻ flashcard vào database địa phương
+        flashcardDao.updateFlashcard(updatedCard)
+        
+        // 3. Ghi log học tập
         val log = StudyLog(
             cardId = flashcard.id,
             quality = quality,
@@ -141,9 +150,9 @@ class FlashcardRepositoryImpl @Inject constructor(
         )
         studyLogDao.insertStudyLog(log)
         
-        // 3. Đồng bộ (Async)
+        // 4. Đồng bộ (Async)
         try {
-            firestoreDataSource.syncFlashcard(flashcard)
+            firestoreDataSource.syncFlashcard(updatedCard)
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ trong recordStudyEvent", e)
             scheduleSyncWorker()
@@ -159,10 +168,22 @@ class FlashcardRepositoryImpl @Inject constructor(
                     deckDao.insertDeck(cloudDeck.copy(isSynced = true))
                 }
                 val cloudCards = firestoreDataSource.getAllFlashcards(cloudDeck.id)
+                Log.d("Sync", "Tải được ${cloudCards.size} thẻ từ Cloud cho bộ ${cloudDeck.id}")
                 for (cloudCard in cloudCards) {
                     val localCard = flashcardDao.getFlashcardById(cloudCard.id)
-                    if (localCard == null || cloudCard.lastModified > localCard.lastModified) {
-                        flashcardDao.insertFlashcard(cloudCard.copy(isSynced = true))
+                    
+                    // Dự đoán thẻ cần cập nhật: Đảm bảo deckId luôn chính xác
+                    val cardWithCorrectDeck = cloudCard.copy(
+                        deckId = cloudDeck.id,
+                        isSynced = true
+                    )
+
+                    if (localCard == null || 
+                        cloudCard.lastModified > localCard.lastModified ||
+                        localCard.deckId != cloudDeck.id // Trường hợp khẩn cấp: Sửa deckId bị lỗi
+                    ) {
+                        Log.d("Sync", "Đang cập nhật/chèn thẻ ID: ${cloudCard.id}")
+                        flashcardDao.insertFlashcard(cardWithCorrectDeck)
                     }
                 }
             }

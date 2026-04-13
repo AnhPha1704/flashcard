@@ -21,7 +21,7 @@ fun StatisticsScreen(
     viewModel: MainViewModel = viewModel()
 ) {
     val decks by viewModel.decks.collectAsState()
-    val totalCards = decks.sumOf { it.cardCount }
+    val totalCards = decks.sumOf { it.totalCount }
 
     Column(
         modifier = Modifier

@@ -219,10 +219,11 @@ fun HomeScreen(
                 // --- Deck List ---
                 items(items = decks, key = { it.deck.id }) { deckWithCount ->
                     val deck = deckWithCount.deck
-                    val count = deckWithCount.cardCount
                     DeckCard(
                         deck = deck,
-                        cardCount = count,
+                        cardCount = deckWithCount.totalCount,
+                        dueCount = deckWithCount.dueCount,
+                        newCount = deckWithCount.newCount,
                         onClick = { onDeckClick(deck.id) },
                         onEdit = { deckToEdit = deck },
                         onDelete = {

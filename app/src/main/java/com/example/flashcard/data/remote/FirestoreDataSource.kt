@@ -63,18 +63,22 @@ class FirestoreDataSource @Inject constructor(
     }
 
     suspend fun getAllDecks(): List<Deck> {
-        return userDoc.collection("decks")
+        val snapshot = userDoc.collection("decks")
             .get()
             .await()
-            .toObjects(Deck::class.java)
+        return snapshot.documents.mapNotNull { doc ->
+            doc.toObject(Deck::class.java)?.copy(id = doc.id.toInt())
+        }
     }
 
     suspend fun getAllFlashcards(deckId: Int): List<Flashcard> {
-        return userDoc.collection("decks")
+        val snapshot = userDoc.collection("decks")
             .document(deckId.toString())
             .collection("flashcards")
             .get()
             .await()
-            .toObjects(Flashcard::class.java)
+        return snapshot.documents.mapNotNull { doc ->
+            doc.toObject(Flashcard::class.java)?.copy(id = doc.id.toInt())
+        }
     }
 }

@@ -45,11 +45,12 @@ import com.example.flashcard.ui.viewmodel.StudyViewModel
 @Composable
 fun StudyScreen(
     deckId: Int,
+    mode: com.example.flashcard.StudyMode = com.example.flashcard.StudyMode.ALL,
     onBack: () -> Unit,
     viewModel: StudyViewModel = viewModel()
 ) {
     LaunchedEffect(deckId) {
-        viewModel.loadDeck(deckId)
+        viewModel.loadDeck(deckId, mode)
     }
 
     val context = LocalContext.current
@@ -65,6 +66,7 @@ fun StudyScreen(
     val isTtsReady by ttsHelper.isReady.collectAsState()
     val sessionLearnedCount by viewModel.sessionLearnedCount.collectAsState()
     val sessionReviewCount by viewModel.sessionReviewCount.collectAsState()
+    val initialSize by viewModel.initialSize.collectAsState()
 
     var pendingSwipe by remember { mutableStateOf<SwipeDirection?>(null) }
 
@@ -131,8 +133,13 @@ fun StudyScreen(
                         shape = RoundedCornerShape(50),
                         border = BorderStroke(2.dp, NeoNavy)
                     ) {
+                        // Hiển thị số thẻ hiện tại trên tổng số thẻ gốc
+                        // Nếu currentIndex >= initialSize thì vẫn hiển thị là initialSize để tránh cảm giác bị thêm thẻ
+                        val displayTotal = initialSize
+                        val displayCurrent = (currentIndex + 1).coerceAtMost(displayTotal)
+                        
                         Text(
-                            text = "${currentIndex + 1} / ${cards.size}",
+                            text = "$displayCurrent / $displayTotal",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Black,
                             color = NeoNavy,
@@ -163,7 +170,7 @@ fun StudyScreen(
                     EmptyStudyState(onBack)
                 } else if (isCompleted) {
                     CompletionScreen(
-                        totalCards = cards.size,
+                        totalCards = initialSize,
                         learnedCount = sessionLearnedCount,
                         reviewCount = sessionReviewCount,
                         onRestart = { viewModel.restartSession() },
@@ -172,6 +179,7 @@ fun StudyScreen(
                 } else {
                     StudyMainContent(
                         cards = cards,
+                        initialSize = initialSize,
                         currentIndex = currentIndex,
                         isFlipped = isFlipped,
                         pendingSwipe = pendingSwipe,
@@ -237,6 +245,7 @@ fun StudyScreen(
 @Composable
 private fun StudyMainContent(
     cards: List<com.example.flashcard.data.local.entity.Flashcard>,
+    initialSize: Int,
     currentIndex: Int,
     isFlipped: Boolean,
     pendingSwipe: SwipeDirection?,
@@ -257,7 +266,7 @@ private fun StudyMainContent(
     ) {
         // Progress Bar
         Canvas(modifier = Modifier.fillMaxWidth().height(12.dp)) {
-            val total = cards.size
+            val total = if (initialSize > 0) initialSize else cards.size
             if (total > 0) {
                 val spacing = 4.dp.toPx()
                 val itemWidth = (size.width - (total - 1) * spacing) / total
@@ -284,6 +293,41 @@ private fun StudyMainContent(
             }
         }
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Session Stats Bubbles (Moved up)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)
+        ) {
+            Surface(
+                color = Color(0xFF22C55E).copy(alpha = 0.15f),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, Color(0xFF22C55E).copy(alpha = 0.3f))
+            ) {
+                Text(
+                    text = "✓ $sessionLearnedCount",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color(0xFF22C55E),
+                    fontWeight = FontWeight.Black
+                )
+            }
+            Surface(
+                color = Color(0xFFEF4444).copy(alpha = 0.15f),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.3f))
+            ) {
+                Text(
+                    text = "✗ $sessionReviewCount",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color(0xFFEF4444),
+                    fontWeight = FontWeight.Black
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.weight(0.05f))
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -295,51 +339,22 @@ private fun StudyMainContent(
                 },
                 label = "CardTransition"
             ) { index ->
-                FlashcardCard(
-                    flashcard = cards[index],
-                    isFlipped = isFlipped,
-                    onFlip = onFlip,
-                    onSwipeLeft = onReviewComplete,
-                    onSwipeRight = onLearnedComplete,
-                    externalSwipeTrigger = pendingSwipe,
-                    onSpeak = onSpeak
-                )
+                cards.getOrNull(index)?.let { card ->
+                    FlashcardCard(
+                        flashcard = card,
+                        isFlipped = isFlipped,
+                        onFlip = onFlip,
+                        onSwipeLeft = onReviewComplete,
+                        onSwipeRight = onLearnedComplete,
+                        externalSwipeTrigger = pendingSwipe,
+                        onSpeak = onSpeak
+                    )
+                }
             }
         }
 
         Spacer(modifier = Modifier.weight(0.05f))
 
-        // Mini session stats bubbles from feature
-        if (sessionLearnedCount > 0 || sessionReviewCount > 0) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
-            ) {
-                if (sessionLearnedCount > 0) {
-                    Surface(color = Color(0xFF22C55E).copy(alpha = 0.15f), shape = RoundedCornerShape(20.dp)) {
-                        Text(
-                            text = "✓ $sessionLearnedCount đã thuộc",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFF22C55E),
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-                if (sessionReviewCount > 0) {
-                    Surface(color = Color(0xFFEF4444).copy(alpha = 0.15f), shape = RoundedCornerShape(20.dp)) {
-                        Text(
-                            text = "✗ $sessionReviewCount cần ôn",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFFEF4444),
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-        }
 
         StudyControls(onReviewClick = onReviewClick, onLearnedClick = onLearnedClick)
     }

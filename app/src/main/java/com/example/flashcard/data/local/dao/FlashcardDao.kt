@@ -22,8 +22,14 @@ interface FlashcardDao {
     @Query("SELECT * FROM flashcards WHERE id = :id")
     suspend fun getFlashcardById(id: Int): Flashcard?
 
-    @Query("SELECT * FROM flashcards WHERE deckId = :deckId AND nextReview <= :currentTime")
+    @Query("SELECT * FROM flashcards WHERE deckId = :deckId AND repetitions > 0 AND nextReview <= :currentTime")
     fun getCardsToReview(deckId: Int, currentTime: Long): Flow<List<Flashcard>>
+
+    @Query("SELECT * FROM flashcards WHERE deckId = :deckId AND repetitions = 0 AND lastModified == createdAt")
+    fun getNewCards(deckId: Int): Flow<List<Flashcard>>
+
+    @Query("SELECT * FROM flashcards WHERE deckId = :deckId AND repetitions = 0 AND lastModified > createdAt")
+    fun getForgottenCards(deckId: Int): Flow<List<Flashcard>>
 
     @Query("SELECT * FROM flashcards WHERE isSynced = 0")
     suspend fun getUnsyncedFlashcards(): List<Flashcard>
