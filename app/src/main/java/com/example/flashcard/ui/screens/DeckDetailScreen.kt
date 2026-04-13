@@ -6,7 +6,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,7 +17,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flashcard.data.local.entity.Flashcard
+import com.example.flashcard.domain.repository.FlashcardRepository
 import com.example.flashcard.ui.components.AddEditFlashcardDialog
 import com.example.flashcard.ui.theme.*
 import com.example.flashcard.ui.viewmodel.DeckDetailViewModel
@@ -36,7 +35,7 @@ import kotlinx.coroutines.launch
 fun DeckDetailScreen(
     deckId: Int,
     onBack: () -> Unit,
-    onStudyClick: (Int) -> Unit,
+    onStudyClick: (Int, com.example.flashcard.StudyMode) -> Unit,
     viewModel: DeckDetailViewModel = viewModel()
 ) {
     val deck by viewModel.deck.collectAsState()
@@ -145,39 +144,58 @@ fun DeckDetailScreen(
                     }
                 }
 
-                // --- Study Button (Neo-Pill) ---
-                if (flashcards.isNotEmpty()) {
-                    Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
-                                .offset(x = 5.dp, y = 5.dp)
-                                .background(NeoNavy, RoundedCornerShape(100))
+                // --- Study Buttons Section ---
+                Column(modifier = Modifier.padding(bottom = 16.dp)) {
+                    // 0. HỌC TẤT CẢ (Luôn hiện nếu có thẻ)
+                    if (flashcards.isNotEmpty()) {
+                        StudyActionButton(
+                            text = "HỌC TẤT CẢ (${flashcards.size})",
+                            color = NeoWhite,
+                            icon = Icons.Default.AllInclusive,
+                            onClick = { onStudyClick(deckId, com.example.flashcard.StudyMode.ALL) }
                         )
-                        Surface(
-                            onClick = { onStudyClick(deckId) },
+                    }
+
+                    // 1. ÔN TẬP ĐẾN HẠN
+                    val dueCards = flashcards.filter { it.repetitions > 0 && it.nextReview <= System.currentTimeMillis() }
+                    if (dueCards.isNotEmpty()) {
+                        StudyActionButton(
+                            text = "ÔN TẬP ĐẾN HẠN (${dueCards.size})",
+                            color = NeoBackgroundPink,
+                            icon = Icons.Default.Refresh,
+                            onClick = { onStudyClick(deckId, com.example.flashcard.StudyMode.DUE) }
+                        )
+                    }
+
+                    // 2. HỌC LẠI THẺ QUÊN
+                    // Định nghĩa: repetitions = 0 nhưng đã từng có tương tác (lastModified > createdAt)
+                    val forgottenCards = flashcards.filter { it.repetitions == 0 && it.lastModified > it.createdAt }
+                    if (forgottenCards.isNotEmpty()) {
+                        StudyActionButton(
+                            text = "HỌC LẠI THẺ QUÊN (${forgottenCards.size})",
+                            color = Color(0xFFEF4444),
+                            textColor = NeoWhite,
+                            icon = Icons.Default.Warning,
+                            onClick = { onStudyClick(deckId, com.example.flashcard.StudyMode.FORGOTTEN) }
+                        )
+                    }
+
+                    // 3. HỌC THẺ MỚI
+                    // Định nghĩa: repetitions = 0 và chưa từng tương tác (lastModified <= createdAt)
+                    val newCards = flashcards.filter { it.repetitions == 0 && it.lastModified <= it.createdAt }
+                    if (newCards.isNotEmpty()) {
+                        StudyActionButton(
+                            text = "HỌC THẺ MỚI (${newCards.size})",
                             color = NeoBackgroundBlue,
-                            shape = RoundedCornerShape(100),
-                            border = BorderStroke(3.dp, NeoNavy),
-                            modifier = Modifier.fillMaxWidth().height(56.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = NeoNavy)
-                                Spacer(Modifier.width(8.dp))
-                                Text("BẮT ĐẦU HỌC", fontWeight = FontWeight.Black, fontSize = 16.sp, color = NeoNavy)
-                            }
-                        }
+                            icon = Icons.Default.PlayArrow,
+                            onClick = { onStudyClick(deckId, com.example.flashcard.StudyMode.NEW) }
+                        )
                     }
                 }
 
                 // --- List of cards ---
                 if (flashcards.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("Empty", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black, color = NeoNavy.copy(alpha = 0.2f))
                             Spacer(modifier = Modifier.height(16.dp))
@@ -186,15 +204,15 @@ fun DeckDetailScreen(
                     }
                 } else {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 100.dp),
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 100.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(flashcards) { card ->
                             FlashcardItem(
                                 card = card,
-                                onEdit = { flashcardToEdit = it },
-                                onDelete = { viewModel.deleteFlashcard(it) }
+                                onEdit = { flashcardToEdit = card },
+                                onDelete = { viewModel.deleteFlashcard(card) }
                             )
                         }
                     }
@@ -251,6 +269,42 @@ fun DeckDetailScreen(
 }
 
 @Composable
+private fun StudyActionButton(
+    text: String,
+    color: Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    textColor: Color = NeoNavy,
+    onClick: () -> Unit
+) {
+    Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 6.dp)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .offset(x = 4.dp, y = 4.dp)
+                .background(NeoNavy, RoundedCornerShape(100))
+        )
+        Surface(
+            onClick = onClick,
+            color = color,
+            shape = RoundedCornerShape(100),
+            border = BorderStroke(3.dp, NeoNavy),
+            modifier = Modifier.fillMaxWidth().height(52.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(icon, contentDescription = null, tint = textColor)
+                Spacer(Modifier.width(8.dp))
+                Text(text, fontWeight = FontWeight.Black, fontSize = 15.sp, color = textColor)
+            }
+        }
+    }
+}
+
+@Composable
 fun FlashcardItem(
     card: Flashcard,
     onEdit: (Flashcard) -> Unit,
@@ -294,11 +348,13 @@ fun FlashcardItem(
                     )
                 }
                 
-                IconButton(onClick = { onEdit(card) }) {
-                    Icon(Icons.Default.Edit, contentDescription = "Sửa", tint = NeoNavy)
-                }
-                IconButton(onClick = { onDelete(card) }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = Color.Red.copy(alpha = 0.8f))
+                Row {
+                    IconButton(onClick = { onEdit(card) }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Sửa", tint = NeoNavy)
+                    }
+                    IconButton(onClick = { onDelete(card) }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
         }

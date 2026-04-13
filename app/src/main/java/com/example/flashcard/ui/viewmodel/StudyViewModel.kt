@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import android.util.Log
+
 @HiltViewModel
 class StudyViewModel @Inject constructor(
     private val repository: FlashcardRepository
@@ -29,6 +31,10 @@ class StudyViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    // Số lượng thẻ gốc khi bắt đầu (để tính tiến độ chuẩn)
+    private val _initialSize = MutableStateFlow(0)
+    val initialSize: StateFlow<Int> = _initialSize.asStateFlow()
+
     // Đếm số thẻ đã thuộc/cần ôn trong phiên này
     private val _sessionLearnedCount = MutableStateFlow(0)
     val sessionLearnedCount: StateFlow<Int> = _sessionLearnedCount.asStateFlow()
@@ -36,17 +42,33 @@ class StudyViewModel @Inject constructor(
     private val _sessionReviewCount = MutableStateFlow(0)
     val sessionReviewCount: StateFlow<Int> = _sessionReviewCount.asStateFlow()
 
-    fun loadDeck(deckId: Int) {
+    fun loadDeck(deckId: Int, mode: com.example.flashcard.StudyMode = com.example.flashcard.StudyMode.ALL) {
         viewModelScope.launch {
+            Log.d("StudyViewModel", "Đang tải bộ thẻ: deckId=$deckId, mode=$mode")
             _isLoading.value = true
             _isCompleted.value = false
             _currentIndex.value = 0
             _sessionLearnedCount.value = 0
             _sessionReviewCount.value = 0
-            repository.getFlashcardsByDeck(deckId).collect {
-                _cards.value = it
-                _isLoading.value = false
+            
+            val flow = when (mode) {
+                com.example.flashcard.StudyMode.DUE -> 
+                    repository.getCardsToReview(deckId, System.currentTimeMillis())
+                com.example.flashcard.StudyMode.NEW -> 
+                    repository.getNewCards(deckId)
+                com.example.flashcard.StudyMode.FORGOTTEN -> 
+                    repository.getForgottenCards(deckId)
+                else -> 
+                    repository.getFlashcardsByDeck(deckId)
             }
+            
+            // Sử dụng first() để lấy Snapshot dữ liệu (không lấy luồng trực tiếp)
+            // Điều này ngăn danh sách thẻ bị rỗng đột ngột khi dữ liệu Database cập nhật
+            val loadedCards = flow.first()
+            Log.d("StudyViewModel", "Đã tải xong: ${loadedCards.size} thẻ.")
+            _cards.value = loadedCards
+            _initialSize.value = loadedCards.size
+            _isLoading.value = false
         }
     }
 
@@ -63,13 +85,8 @@ class StudyViewModel @Inject constructor(
         val index = _currentIndex.value
         val card = _cards.value.getOrNull(index) ?: return
         viewModelScope.launch {
-            val updatedCard = card.copy(
-                repetitions = card.repetitions + 1,
-                lastModified = System.currentTimeMillis()
-            )
-            repository.recordStudyEvent(updatedCard, 1) // Thay vì chỉ updateFlashcard
-            // Cập nhật list local để UI phản ánh ngay
-            _cards.value = _cards.value.toMutableList().also { it[index] = updatedCard }
+            // Quality 5: Perfect response (Đã thuộc)
+            repository.recordStudyEvent(card, 5)
             _sessionLearnedCount.value += 1
         }
         nextCard()
@@ -82,15 +99,15 @@ class StudyViewModel @Inject constructor(
      */
     fun swipeReview() {
         val index = _currentIndex.value
-        val card = _cards.value.getOrNull(index) ?: return
+        val currentCards = _cards.value
+        val card = currentCards.getOrNull(index) ?: return
+        
         viewModelScope.launch {
-            val updatedCard = card.copy(
-                repetitions = 0,
-                lastModified = System.currentTimeMillis()
-            )
-            repository.recordStudyEvent(updatedCard, 0) // Thay vì chỉ updateFlashcard
-            _cards.value = _cards.value.toMutableList().also { it[index] = updatedCard }
+            // Quality 0: Complete blackout (Ôn lại)
+            repository.recordStudyEvent(card, 0)
             _sessionReviewCount.value += 1
+            
+            // KHÔNG CÒN lặp lại thẻ ngay lập tức trong phiên học (Theo yêu cầu người dùng)
         }
         nextCard()
     }

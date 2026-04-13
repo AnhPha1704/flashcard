@@ -19,11 +19,14 @@ import androidx.compose.ui.unit.dp
 import com.example.flashcard.data.local.entity.Deck
 import com.example.flashcard.ui.theme.NeoNavy
 import com.example.flashcard.ui.theme.NeoWhite
+import com.example.flashcard.ui.theme.NeoBackgroundPink
 
 @Composable
 fun DeckCard(
     deck: Deck,
     cardCount: Int,
+    dueCount: Int = 0,
+    newCount: Int = 0,
     onClick: () -> Unit,
     onEdit: () -> Unit = {},
     onDelete: () -> Unit = {}
@@ -128,24 +131,60 @@ fun DeckCard(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Tags
+                // Counts & Tags
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Total cards
                     Surface(
                         color = NeoWhite,
                         shape = RoundedCornerShape(50),
                         border = BorderStroke(2.dp, NeoNavy)
                     ) {
                         Text(
-                            text = "$cardCount cards",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelMedium,
+                            text = "$cardCount thẻ",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
                             color = NeoNavy,
-                            fontWeight = FontWeight.Black
+                            fontWeight = FontWeight.Bold
                         )
+                    }
+
+                    // Spacer to push counts to right? No, we use Arrangement.spacedBy.
+                    // Let's show New Count
+                    if (newCount > 0) {
+                        Surface(
+                            color = com.example.flashcard.ui.theme.NeoBackgroundBlue,
+                            shape = RoundedCornerShape(50),
+                            border = BorderStroke(2.dp, NeoNavy)
+                        ) {
+                            Text(
+                                text = "$newCount mới",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NeoNavy,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                    }
+
+                    // Show Due Count
+                    if (dueCount > 0) {
+                        Surface(
+                            color = NeoBackgroundPink,
+                            shape = RoundedCornerShape(50),
+                            border = BorderStroke(2.dp, NeoNavy)
+                        ) {
+                            Text(
+                                text = "$dueCount đến hạn",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NeoNavy,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
                     }
                 }
             }

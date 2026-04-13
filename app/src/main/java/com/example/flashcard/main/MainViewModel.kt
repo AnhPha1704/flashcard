@@ -35,7 +35,7 @@ class MainViewModel @Inject constructor(
 
     // Quan sát danh sách bộ thẻ (Decks) cùng số lượng thẻ từ Database và lọc theo search query & sort type
     val decks: StateFlow<List<DeckWithCount>> = combine(
-        repository.getAllDecksWithCount(),
+        repository.getAllDecksWithCount(System.currentTimeMillis()),
         _searchQuery,
         _sortType
     ) { deckList, query, sortOrder ->

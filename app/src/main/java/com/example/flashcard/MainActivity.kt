@@ -47,12 +47,16 @@ import javax.inject.Inject
 // ──────────────────────────────────────────
 // Navigation State
 // ──────────────────────────────────────────
+enum class StudyMode {
+    ALL, DUE, NEW, FORGOTTEN
+}
+
 sealed class Screen {
     object Splash : Screen()
     object Login : Screen()
     object MainApp : Screen()
     data class DeckDetail(val deckId: Int) : Screen()
-    data class Study(val deckId: Int) : Screen()
+    data class Study(val deckId: Int, val mode: StudyMode = StudyMode.ALL) : Screen()
 }
 
 enum class BottomTab(val label: String, val icon: ImageVector) {
@@ -184,13 +188,16 @@ class MainActivity : ComponentActivity() {
                         DeckDetailScreen(
                             deckId = screen.deckId,
                             onBack = { currentScreen = Screen.MainApp },
-                            onStudyClick = { deckId -> currentScreen = Screen.Study(deckId) }
+                            onStudyClick = { id, onlyDue -> 
+                                currentScreen = Screen.Study(id, onlyDue) 
+                            }
                         )
                     }
 
                     is Screen.Study -> {
                         StudyScreen(
                             deckId = screen.deckId,
+                            mode = screen.mode,
                             onBack = { currentScreen = Screen.DeckDetail(screen.deckId) }
                         )
                     }
