@@ -168,7 +168,7 @@ class MainActivity : ComponentActivity() {
                                                     currentScreen = Screen.DeckDetail(deckId)
                                                 }
                                             )
-                                            BottomTab.DECKS -> HomeScreen(
+                                            BottomTab.DECKS -> DeckListScreen(
                                                 onDeckClick = { deckId ->
                                                     currentScreen = Screen.DeckDetail(deckId)
                                                 }
