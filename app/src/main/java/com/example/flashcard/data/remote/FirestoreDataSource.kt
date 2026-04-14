@@ -148,4 +148,24 @@ class FirestoreDataSource @Inject constructor(
             }
         awaitClose { subscription.remove() }
     }
+
+    suspend fun updateSessionId(sessionId: String) {
+        userDoc.set(mapOf("currentSessionId" to sessionId), com.google.firebase.firestore.SetOptions.merge())
+            .await()
+        android.util.Log.d("Session", "Đã cập nhật Session ID mới: $sessionId")
+    }
+
+    fun getSessionIdFlow(): Flow<String?> = callbackFlow {
+        val subscription = userDoc.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                android.util.Log.e("Session", "Lỗi lắng nghe Session ID", error)
+                close(error)
+                return@addSnapshotListener
+            }
+            val sessionId = snapshot?.getString("currentSessionId")
+            android.util.Log.d("Session", "Nhận Session ID từ Firestore: $sessionId")
+            trySend(sessionId)
+        }
+        awaitClose { subscription.remove() }
+    }
 }

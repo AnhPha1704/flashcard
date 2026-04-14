@@ -329,6 +329,12 @@ class FlashcardRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun updateSessionId(sessionId: String) {
+        firestoreDataSource.updateSessionId(sessionId)
+    }
+
+    override fun getSessionIdFlow(): Flow<String?> = firestoreDataSource.getSessionIdFlow()
+
     private fun calculateStreak(studyDates: List<String>): Int {
         if (studyDates.isEmpty()) return 0
         

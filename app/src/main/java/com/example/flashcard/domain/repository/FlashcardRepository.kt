@@ -36,4 +36,8 @@ interface FlashcardRepository {
     fun getStatsOverview(): Flow<StatsOverview>
     fun getStudyHistoryLast7Days(): Flow<List<DayStudyCount>>
     fun getReviewForecast(): Flow<List<DayStudyCount>>
+
+    // Single Device Login management
+    suspend fun updateSessionId(sessionId: String)
+    fun getSessionIdFlow(): Flow<String?>
 }
