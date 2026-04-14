@@ -165,10 +165,14 @@ class MainActivity : ComponentActivity() {
                                         when (tab) {
                                             BottomTab.HOME -> HomeScreen(
                                                 onDeckClick = { deckId ->
-                                                    currentScreen = Screen.DeckDetail(deckId)
+                                                    if (deckId == -1) {
+                                                        currentScreen = Screen.Study(-1, StudyMode.DUE)
+                                                    } else {
+                                                        currentScreen = Screen.DeckDetail(deckId)
+                                                    }
                                                 }
                                             )
-                                            BottomTab.DECKS -> HomeScreen(
+                                            BottomTab.DECKS -> DeckListScreen(
                                                 onDeckClick = { deckId ->
                                                     currentScreen = Screen.DeckDetail(deckId)
                                                 }
@@ -198,7 +202,13 @@ class MainActivity : ComponentActivity() {
                         StudyScreen(
                             deckId = screen.deckId,
                             mode = screen.mode,
-                            onBack = { currentScreen = Screen.DeckDetail(screen.deckId) }
+                            onBack = { 
+                                if (screen.deckId == -1) {
+                                    currentScreen = Screen.MainApp
+                                } else {
+                                    currentScreen = Screen.DeckDetail(screen.deckId)
+                                }
+                            }
                         )
                     }
                 }

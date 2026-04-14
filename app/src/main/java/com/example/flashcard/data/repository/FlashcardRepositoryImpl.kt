@@ -134,6 +134,16 @@ class FlashcardRepositoryImpl @Inject constructor(
     override fun getForgottenCards(deckId: Int): Flow<List<Flashcard>> =
         flashcardDao.getForgottenCards(deckId)
 
+    override fun getAllCardsToReview(currentTime: Long): Flow<List<Flashcard>> =
+        flashcardDao.getAllCardsToReview(currentTime)
+
+    override fun getNearestUpcomingReview(currentTime: Long): Flow<Long?> =
+        flashcardDao.getNearestUpcomingReview(currentTime)
+
+    override suspend fun debugMakeCardDue(): Int {
+        return flashcardDao.makeNearestCardDue(System.currentTimeMillis())
+    }
+
     override suspend fun recordStudyEvent(flashcard: Flashcard, quality: Int) {
         // 1. Tính toán logic SM2 thông qua lớp tiện ích
         val updatedCard = com.example.flashcard.utils.SM2Logic.calculate(flashcard, quality)
@@ -220,6 +230,13 @@ class FlashcardRepositoryImpl @Inject constructor(
     override fun getStudyHistoryLast7Days(): Flow<List<DayStudyCount>> {
         val sevenDaysAgo = System.currentTimeMillis() - (7L * 24 * 60 * 60 * 1000)
         return studyLogDao.getStudyHistorySince(sevenDaysAgo).map { list ->
+            list.map { DayStudyCount(it.dayString, it.count) }
+        }
+    }
+
+    override fun getReviewForecast(): Flow<List<DayStudyCount>> {
+        val startOfToday = getStartOfToday()
+        return flashcardDao.getReviewForecast(startOfToday).map { list ->
             list.map { DayStudyCount(it.dayString, it.count) }
         }
     }

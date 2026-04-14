@@ -24,10 +24,14 @@ interface FlashcardRepository {
     fun getCardsToReview(deckId: Int, currentTime: Long): Flow<List<Flashcard>>
     fun getNewCards(deckId: Int): Flow<List<Flashcard>>
     fun getForgottenCards(deckId: Int): Flow<List<Flashcard>>
+    fun getAllCardsToReview(currentTime: Long): Flow<List<Flashcard>>
+    fun getNearestUpcomingReview(currentTime: Long): Flow<Long?>
+    suspend fun debugMakeCardDue(): Int
     suspend fun recordStudyEvent(flashcard: Flashcard, quality: Int)
     suspend fun syncAllData()
 
     // Statistics
     fun getStatsOverview(): Flow<StatsOverview>
     fun getStudyHistoryLast7Days(): Flow<List<DayStudyCount>>
+    fun getReviewForecast(): Flow<List<DayStudyCount>>
 }
