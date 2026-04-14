@@ -1,5 +1,6 @@
 package com.example.flashcard.data.repository
 
+import com.example.flashcard.data.local.AppDatabase
 import com.example.flashcard.data.local.dao.DeckDao
 import com.example.flashcard.data.local.dao.FlashcardDao
 import com.example.flashcard.data.local.dao.StudyLogDao
@@ -31,6 +32,7 @@ class FlashcardRepositoryImpl @Inject constructor(
     private val flashcardDao: FlashcardDao,
     private val studyLogDao: StudyLogDao,
     private val firestoreDataSource: FirestoreDataSource,
+    private val database: AppDatabase,
     @ApplicationContext private val context: Context
 ) : FlashcardRepository {
 
@@ -201,6 +203,15 @@ class FlashcardRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi trong quá trình đồng bộ toàn diện", e)
             scheduleSyncWorker()
+        }
+    }
+
+    override suspend fun clearLocalData() {
+        try {
+            database.clearAllTables()
+            Log.d("FlashcardRepo", "Đã xóa sạch dữ liệu local")
+        } catch (e: Exception) {
+            Log.e("FlashcardRepo", "Lỗi khi xóa dữ liệu local", e)
         }
     }
 

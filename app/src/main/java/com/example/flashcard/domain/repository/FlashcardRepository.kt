@@ -29,6 +29,7 @@ interface FlashcardRepository {
     suspend fun debugMakeCardDue(): Int
     suspend fun recordStudyEvent(flashcard: Flashcard, quality: Int)
     suspend fun syncAllData()
+    suspend fun clearLocalData()
 
     // Statistics
     fun getStatsOverview(): Flow<StatsOverview>
