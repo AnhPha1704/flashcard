@@ -11,14 +11,6 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "study_logs",
-    foreignKeys = [
-        ForeignKey(
-            entity = Flashcard::class,
-            parentColumns = ["id"],
-            childColumns = ["cardId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
     indices = [Index(value = ["cardId"])]
 )
 data class StudyLog(
