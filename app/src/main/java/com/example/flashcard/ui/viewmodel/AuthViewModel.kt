@@ -3,6 +3,7 @@ package com.example.flashcard.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flashcard.domain.repository.AuthRepository
+import com.example.flashcard.domain.repository.FlashcardRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -14,7 +15,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val flashcardRepository: FlashcardRepository
 ) : ViewModel() {
 
     val currentUser = authRepository.currentUser
@@ -55,7 +57,10 @@ class AuthViewModel @Inject constructor(
     }
 
     fun signOut() {
-        authRepository.signOut()
+        viewModelScope.launch {
+            flashcardRepository.clearLocalData()
+            authRepository.signOut()
+        }
     }
 
     fun clearError() {

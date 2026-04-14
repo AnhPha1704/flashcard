@@ -1,5 +1,6 @@
 package com.example.flashcard.data.repository
 
+import com.example.flashcard.data.local.AppDatabase
 import com.example.flashcard.data.local.dao.DeckDao
 import com.example.flashcard.data.local.dao.FlashcardDao
 import com.example.flashcard.data.local.dao.StudyLogDao
@@ -10,9 +11,9 @@ import com.example.flashcard.domain.model.DayStudyCount
 import com.example.flashcard.domain.model.StatsOverview
 import com.example.flashcard.domain.repository.FlashcardRepository
 import com.example.flashcard.data.remote.FirestoreDataSource
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.*
 import android.util.Log
 import java.util.Calendar
 import android.content.Context
@@ -31,6 +32,7 @@ class FlashcardRepositoryImpl @Inject constructor(
     private val flashcardDao: FlashcardDao,
     private val studyLogDao: StudyLogDao,
     private val firestoreDataSource: FirestoreDataSource,
+    private val database: AppDatabase,
     @ApplicationContext private val context: Context
 ) : FlashcardRepository {
 
@@ -80,6 +82,17 @@ class FlashcardRepositoryImpl @Inject constructor(
         return result
     }
 
+    private suspend fun updateDeckUnsync(deck: Deck) {
+        val lastModifiedDeck = deck.copy(lastModified = System.currentTimeMillis(), isSynced = false)
+        deckDao.updateDeck(lastModifiedDeck)
+        try {
+            firestoreDataSource.syncDeck(lastModifiedDeck)
+            deckDao.updateDeck(lastModifiedDeck.copy(isSynced = true))
+        } catch (e: Exception) {
+            scheduleSyncWorker()
+        }
+    }
+
     // ===== FLASHCARD OPERATIONS =====
 
     override fun getFlashcardsByDeck(deckId: Int): Flow<List<Flashcard>> =
@@ -94,6 +107,11 @@ class FlashcardRepositoryImpl @Inject constructor(
         try {
             firestoreDataSource.syncFlashcard(newCard)
             flashcardDao.updateFlashcard(newCard.copy(isSynced = true))
+            
+            // Cập nhật lastModified của Deck để kích hoạt Real-time sync
+            getDeckById(flashcard.deckId)?.let { deck ->
+                updateDeck(deck)
+            }
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
             scheduleSyncWorker()
@@ -107,6 +125,11 @@ class FlashcardRepositoryImpl @Inject constructor(
         try {
             firestoreDataSource.syncFlashcard(lastModifiedCard)
             flashcardDao.updateFlashcard(lastModifiedCard.copy(isSynced = true))
+            
+            // Cập nhật lastModified của Deck để kích hoạt Real-time sync
+            getDeckById(flashcard.deckId)?.let { deck ->
+                updateDeck(deck)
+            }
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
             scheduleSyncWorker()
@@ -118,6 +141,11 @@ class FlashcardRepositoryImpl @Inject constructor(
         val result = flashcardDao.deleteFlashcard(flashcard)
         try {
             firestoreDataSource.deleteFlashcard(flashcard.deckId, flashcard.id)
+            
+            // Cập nhật lastModified của Deck để kích hoạt Real-time sync
+            getDeckById(flashcard.deckId)?.let { deck ->
+                updateDeckUnsync(deck) // Dùng hàm mới để tránh vòng lặp delete/update vô tận
+            }
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
             scheduleSyncWorker()
@@ -163,6 +191,11 @@ class FlashcardRepositoryImpl @Inject constructor(
         // 4. Đồng bộ (Async)
         try {
             firestoreDataSource.syncFlashcard(updatedCard)
+            
+            // Cập nhật lastModified của Deck để kích hoạt Real-time sync
+            getDeckById(flashcard.deckId)?.let { deck ->
+                updateDeck(deck)
+            }
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ trong recordStudyEvent", e)
             scheduleSyncWorker()
@@ -171,28 +204,42 @@ class FlashcardRepositoryImpl @Inject constructor(
 
     override suspend fun syncAllData() {
         try {
+            Log.d("Sync", "Bắt đầu đồng bộ hóa toàn diện...")
             val cloudDecks = firestoreDataSource.getAllDecks()
+            val localDecks = deckDao.getAllDecks().first()
+
+            // 1. Xử lý xóa Deck (Local có nhưng Cloud không có)
+            val cloudDeckIds = cloudDecks.map { it.id }.toSet()
+            val decksToDelete = localDecks.filter { it.id !in cloudDeckIds }
+            for (deck in decksToDelete) {
+                Log.d("Sync", "Xóa bộ thẻ local không còn trên Cloud: ${deck.id}")
+                deckDao.deleteDeck(deck)
+            }
+
+            // 2. Cập nhật/Thêm Deck và Flashcards
             for (cloudDeck in cloudDecks) {
-                val localDeck = deckDao.getDeckById(cloudDeck.id)
+                val localDeck = localDecks.find { it.id == cloudDeck.id }
                 if (localDeck == null || cloudDeck.lastModified > localDeck.lastModified) {
                     deckDao.insertDeck(cloudDeck.copy(isSynced = true))
                 }
-                val cloudCards = firestoreDataSource.getAllFlashcards(cloudDeck.id)
-                Log.d("Sync", "Tải được ${cloudCards.size} thẻ từ Cloud cho bộ ${cloudDeck.id}")
-                for (cloudCard in cloudCards) {
-                    val localCard = flashcardDao.getFlashcardById(cloudCard.id)
-                    
-                    // Dự đoán thẻ cần cập nhật: Đảm bảo deckId luôn chính xác
-                    val cardWithCorrectDeck = cloudCard.copy(
-                        deckId = cloudDeck.id,
-                        isSynced = true
-                    )
 
-                    if (localCard == null || 
-                        cloudCard.lastModified > localCard.lastModified ||
-                        localCard.deckId != cloudDeck.id // Trường hợp khẩn cấp: Sửa deckId bị lỗi
-                    ) {
-                        Log.d("Sync", "Đang cập nhật/chèn thẻ ID: ${cloudCard.id}")
+                // Đồng bộ Flashcards cho bộ thẻ này
+                val cloudCards = firestoreDataSource.getAllFlashcards(cloudDeck.id)
+                val localCards = flashcardDao.getFlashcardsByDeck(cloudDeck.id).first()
+
+                // Xóa Flashcards local không còn trên Cloud
+                val cloudCardIds = cloudCards.map { it.id }.toSet()
+                val cardsToDelete = localCards.filter { it.id !in cloudCardIds }
+                for (card in cardsToDelete) {
+                    flashcardDao.deleteFlashcard(card)
+                }
+
+                // Cập nhật/Thêm Flashcards
+                for (cloudCard in cloudCards) {
+                    val localCard = localCards.find { it.id == cloudCard.id }
+                    val cardWithCorrectDeck = cloudCard.copy(deckId = cloudDeck.id, isSynced = true)
+
+                    if (localCard == null || cloudCard.lastModified > localCard.lastModified) {
                         flashcardDao.insertFlashcard(cardWithCorrectDeck)
                     }
                 }
@@ -201,6 +248,25 @@ class FlashcardRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi trong quá trình đồng bộ toàn diện", e)
             scheduleSyncWorker()
+        }
+    }
+
+    override fun listenToRealtimeUpdates(): Flow<Unit> = callbackFlow {
+        val decksJob = launch {
+            firestoreDataSource.getDecksFlow().collect {
+                syncAllData()
+                trySend(Unit)
+            }
+        }
+        awaitClose { decksJob.cancel() }
+    }
+
+    override suspend fun clearLocalData() {
+        try {
+            database.clearAllTables()
+            Log.d("FlashcardRepo", "Đã xóa sạch dữ liệu local")
+        } catch (e: Exception) {
+            Log.e("FlashcardRepo", "Lỗi khi xóa dữ liệu local", e)
         }
     }
 
