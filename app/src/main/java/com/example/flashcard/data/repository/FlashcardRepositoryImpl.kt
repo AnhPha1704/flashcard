@@ -82,6 +82,17 @@ class FlashcardRepositoryImpl @Inject constructor(
         return result
     }
 
+    private suspend fun updateDeckUnsync(deck: Deck) {
+        val lastModifiedDeck = deck.copy(lastModified = System.currentTimeMillis(), isSynced = false)
+        deckDao.updateDeck(lastModifiedDeck)
+        try {
+            firestoreDataSource.syncDeck(lastModifiedDeck)
+            deckDao.updateDeck(lastModifiedDeck.copy(isSynced = true))
+        } catch (e: Exception) {
+            scheduleSyncWorker()
+        }
+    }
+
     // ===== FLASHCARD OPERATIONS =====
 
     override fun getFlashcardsByDeck(deckId: Int): Flow<List<Flashcard>> =
@@ -96,6 +107,11 @@ class FlashcardRepositoryImpl @Inject constructor(
         try {
             firestoreDataSource.syncFlashcard(newCard)
             flashcardDao.updateFlashcard(newCard.copy(isSynced = true))
+            
+            // Cập nhật lastModified của Deck để kích hoạt Real-time sync
+            getDeckById(flashcard.deckId)?.let { deck ->
+                updateDeck(deck)
+            }
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
             scheduleSyncWorker()
@@ -109,6 +125,11 @@ class FlashcardRepositoryImpl @Inject constructor(
         try {
             firestoreDataSource.syncFlashcard(lastModifiedCard)
             flashcardDao.updateFlashcard(lastModifiedCard.copy(isSynced = true))
+            
+            // Cập nhật lastModified của Deck để kích hoạt Real-time sync
+            getDeckById(flashcard.deckId)?.let { deck ->
+                updateDeck(deck)
+            }
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
             scheduleSyncWorker()
@@ -120,6 +141,11 @@ class FlashcardRepositoryImpl @Inject constructor(
         val result = flashcardDao.deleteFlashcard(flashcard)
         try {
             firestoreDataSource.deleteFlashcard(flashcard.deckId, flashcard.id)
+            
+            // Cập nhật lastModified của Deck để kích hoạt Real-time sync
+            getDeckById(flashcard.deckId)?.let { deck ->
+                updateDeckUnsync(deck) // Dùng hàm mới để tránh vòng lặp delete/update vô tận
+            }
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ", e)
             scheduleSyncWorker()
@@ -165,6 +191,11 @@ class FlashcardRepositoryImpl @Inject constructor(
         // 4. Đồng bộ (Async)
         try {
             firestoreDataSource.syncFlashcard(updatedCard)
+            
+            // Cập nhật lastModified của Deck để kích hoạt Real-time sync
+            getDeckById(flashcard.deckId)?.let { deck ->
+                updateDeck(deck)
+            }
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi đồng bộ trong recordStudyEvent", e)
             scheduleSyncWorker()
