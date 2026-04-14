@@ -36,6 +36,8 @@ class FlashcardRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context
 ) : FlashcardRepository {
 
+    private var isSyncing = false
+
     // ===== DECK OPERATIONS =====
 
     override fun getAllDecks(): Flow<List<Deck>> = deckDao.getAllDecks()
@@ -191,6 +193,7 @@ class FlashcardRepositoryImpl @Inject constructor(
         // 4. Đồng bộ (Async)
         try {
             firestoreDataSource.syncFlashcard(updatedCard)
+            firestoreDataSource.syncStudyLog(log)
             
             // Cập nhật lastModified của Deck để kích hoạt Real-time sync
             getDeckById(flashcard.deckId)?.let { deck ->
@@ -203,6 +206,8 @@ class FlashcardRepositoryImpl @Inject constructor(
     }
 
     override suspend fun syncAllData() {
+        if (isSyncing) return
+        isSyncing = true
         try {
             Log.d("Sync", "Bắt đầu đồng bộ hóa toàn diện...")
             val cloudDecks = firestoreDataSource.getAllDecks()
@@ -244,21 +249,38 @@ class FlashcardRepositoryImpl @Inject constructor(
                     }
                 }
             }
+
+            // 3. Đồng bộ Study Logs nội bộ
+            Log.d("Sync", "Bắt đầu đồng bộ Study Logs...")
+            val cloudLogs = firestoreDataSource.getAllStudyLogs()
+            studyLogDao.insertStudyLogs(cloudLogs)
+
             Log.d("FlashcardRepo", "Đồng bộ hoàn tất thành công")
         } catch (e: Exception) {
             Log.e("FlashcardRepo", "Lỗi trong quá trình đồng bộ toàn diện", e)
             scheduleSyncWorker()
+        } finally {
+            isSyncing = false
         }
     }
 
     override fun listenToRealtimeUpdates(): Flow<Unit> = callbackFlow {
-        val decksJob = launch {
-            firestoreDataSource.getDecksFlow().collect {
-                syncAllData()
-                trySend(Unit)
+        val jobs = listOf(
+            launch {
+                firestoreDataSource.getDecksFlow().collect {
+                    syncAllData()
+                    trySend(Unit)
+                }
+            },
+            launch {
+                firestoreDataSource.getStudyLogsFlow().collect {
+                    // Khi có log mới từ máy khác, cập nhật local để giữ streak đồng bộ
+                    syncAllData()
+                    trySend(Unit)
+                }
             }
-        }
-        awaitClose { decksJob.cancel() }
+        )
+        awaitClose { jobs.forEach { it.cancel() } }
     }
 
     override suspend fun clearLocalData() {

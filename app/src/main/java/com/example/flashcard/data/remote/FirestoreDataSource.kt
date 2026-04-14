@@ -122,4 +122,30 @@ class FirestoreDataSource @Inject constructor(
             }
         awaitClose { subscription.remove() }
     }
+
+    suspend fun getAllStudyLogs(): List<StudyLog> {
+        val snapshot = userDoc.collection("study_logs")
+            .get()
+            .await()
+        return snapshot.documents.mapNotNull { doc ->
+            doc.toObject(StudyLog::class.java)
+        }
+    }
+
+    fun getStudyLogsFlow(): Flow<List<StudyLog>> = callbackFlow {
+        val subscription = userDoc.collection("study_logs")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val logs = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(StudyLog::class.java)
+                    }
+                    trySend(logs)
+                }
+            }
+        awaitClose { subscription.remove() }
+    }
 }
