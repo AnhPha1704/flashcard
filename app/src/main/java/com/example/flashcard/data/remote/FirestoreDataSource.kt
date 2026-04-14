@@ -7,6 +7,9 @@ import com.example.flashcard.data.local.entity.Flashcard
 import com.example.flashcard.data.local.entity.StudyLog
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.DocumentReference
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -80,5 +83,43 @@ class FirestoreDataSource @Inject constructor(
         return snapshot.documents.mapNotNull { doc ->
             doc.toObject(Flashcard::class.java)?.copy(id = doc.id.toInt())
         }
+    }
+
+    // --- REAL-TIME FLOWS ---
+
+    fun getDecksFlow(): Flow<List<Deck>> = callbackFlow {
+        val subscription = userDoc.collection("decks")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val decks = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(Deck::class.java)?.copy(id = doc.id.toInt())
+                    }
+                    trySend(decks)
+                }
+            }
+        awaitClose { subscription.remove() }
+    }
+
+    fun getFlashcardsFlow(deckId: Int): Flow<List<Flashcard>> = callbackFlow {
+        val subscription = userDoc.collection("decks")
+            .document(deckId.toString())
+            .collection("flashcards")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val cards = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(Flashcard::class.java)?.copy(id = doc.id.toInt())
+                    }
+                    trySend(cards)
+                }
+            }
+        awaitClose { subscription.remove() }
     }
 }

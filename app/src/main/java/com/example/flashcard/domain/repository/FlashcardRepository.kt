@@ -30,6 +30,7 @@ interface FlashcardRepository {
     suspend fun recordStudyEvent(flashcard: Flashcard, quality: Int)
     suspend fun syncAllData()
     suspend fun clearLocalData()
+    fun listenToRealtimeUpdates(): Flow<Unit>
 
     // Statistics
     fun getStatsOverview(): Flow<StatsOverview>

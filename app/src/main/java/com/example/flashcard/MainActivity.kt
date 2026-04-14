@@ -116,9 +116,14 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Luồng đồng bộ hóa dữ liệu tổng thể
-                LaunchedEffect(Unit) {
-                    repository.syncAllData()
+                // Luồng đồng bộ hóa dữ liệu tổng thể và lắng nghe Real-time
+                LaunchedEffect(currentUser) {
+                    if (currentUser != null) {
+                        repository.syncAllData()
+                        repository.listenToRealtimeUpdates().collect {
+                            // Dữ liệu đã được cập nhật ngầm vào Room bởi Repository
+                        }
+                    }
                 }
 
                 when (val screen = currentScreen) {
