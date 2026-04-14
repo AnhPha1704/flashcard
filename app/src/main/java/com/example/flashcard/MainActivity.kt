@@ -13,6 +13,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -31,10 +32,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.example.flashcard.domain.repository.FlashcardRepository
 import com.example.flashcard.domain.worker.WorkManagerScheduler
+import kotlinx.coroutines.*
 import com.example.flashcard.ui.screens.*
 import com.example.flashcard.ui.theme.FlashcardTheme
 import com.example.flashcard.ui.theme.NeoBackgroundPink
@@ -98,6 +101,7 @@ class MainActivity : ComponentActivity() {
                 }
                 
                 val currentUser by authViewModel.currentUser.collectAsState()
+                val sessionExpired by authViewModel.sessionExpired.collectAsState()
                 var currentScreen by remember { mutableStateOf<Screen>(Screen.Splash) }
                 var currentTab by remember { mutableStateOf(BottomTab.HOME) }
 
@@ -116,9 +120,120 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Luồng đồng bộ hóa dữ liệu tổng thể
-                LaunchedEffect(Unit) {
-                    repository.syncAllData()
+                // Luồng đồng bộ hóa dữ liệu tổng thể và lắng nghe Real-time
+                LaunchedEffect(currentUser) {
+                    if (currentUser != null) {
+                        // Xác nhận thiết bị này đang hoạt động và chiếm quyền phiên
+                        authViewModel.claimSession()
+
+                        // 1. Lắng nghe Session ID (Chạy song song, không chặn)
+                        launch {
+                            repository.getSessionIdFlow().collect { cloudSessionId ->
+                                android.util.Log.d("Session", "So sánh local: ${authViewModel.deviceId} vs remote: $cloudSessionId")
+                                if (cloudSessionId != null && cloudSessionId != authViewModel.deviceId) {
+                                    android.util.Log.w("Session", "Phát hiện đăng nhập song song!")
+                                    authViewModel.notifySessionExpired()
+                                }
+                            }
+                        }
+
+                        // 2. Lắng nghe cập nhật dữ liệu Real-time (Chạy song song, không chặn)
+                        launch {
+                            repository.listenToRealtimeUpdates().collect {
+                                // Cập nhật ngầm
+                            }
+                        }
+
+                        // 3. Thực hiện đồng bộ hóa toàn diện ban đầu (Có thể tốn thời gian)
+                        repository.syncAllData()
+                    }
+                }
+
+                // Hiển thị Dialog cảnh báo session ở cấp độ cao nhất (Root)
+                if (sessionExpired) {
+                    androidx.compose.ui.window.Dialog(
+                        onDismissRequest = { },
+                        properties = androidx.compose.ui.window.DialogProperties(
+                            dismissOnBackPress = false,
+                            dismissOnClickOutside = false
+                        )
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp)
+                                .graphicsLayer {
+                                    shadowElevation = 8.dp.toPx()
+                                    shape = RoundedCornerShape(24.dp)
+                                    clip = true
+                                },
+                            color = NeoWhite,
+                            border = BorderStroke(4.dp, NeoNavy),
+                            shape = RoundedCornerShape(24.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .background(NeoBackgroundPink, RoundedCornerShape(16.dp))
+                                        .border(2.dp, NeoNavy, RoundedCornerShape(16.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = null,
+                                        tint = NeoNavy,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.height(24.dp))
+                                
+                                Text(
+                                    text = "Oops! Phiên hết hạn",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Black,
+                                    color = NeoNavy
+                                )
+                                
+                                Spacer(modifier = Modifier.height(12.dp))
+                                
+                                Text(
+                                    text = "Tài khoản của bạn vừa đăng nhập ở một thiết bị khác. Để bảo mật dữ liệu, phiên này đã được đóng gói lại.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = NeoNavy.copy(alpha = 0.7f),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                
+                                Spacer(modifier = Modifier.height(32.dp))
+                                
+                                Button(
+                                    onClick = { 
+                                        authViewModel.clearSessionExpired()
+                                        authViewModel.signOut() 
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(56.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = NeoNavy,
+                                        contentColor = NeoWhite
+                                    ),
+                                    shape = RoundedCornerShape(16.dp),
+                                    border = BorderStroke(2.dp, NeoNavy)
+                                ) {
+                                    Text(
+                                        "ĐĂNG NHẬP LẠI NGAY",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        letterSpacing = 1.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
                 when (val screen = currentScreen) {

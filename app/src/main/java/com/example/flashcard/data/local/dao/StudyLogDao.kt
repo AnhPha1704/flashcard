@@ -7,8 +7,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface StudyLogDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertStudyLog(log: StudyLog): Long
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertStudyLogs(logs: List<StudyLog>): List<Long>
 
     /** Đếm số thẻ duy nhất đã học hôm nay (quality = 1) */
     @Query("""

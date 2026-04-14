@@ -9,7 +9,7 @@ import com.example.flashcard.data.local.entity.Deck
 import com.example.flashcard.data.local.entity.Flashcard
 import com.example.flashcard.data.local.entity.StudyLog
 
-@Database(entities = [Deck::class, Flashcard::class, StudyLog::class], version = 3, exportSchema = false)
+@Database(entities = [Deck::class, Flashcard::class, StudyLog::class], version = 5, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun deckDao(): DeckDao
     abstract fun flashcardDao(): FlashcardDao

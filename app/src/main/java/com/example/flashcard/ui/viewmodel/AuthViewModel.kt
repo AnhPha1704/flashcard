@@ -3,6 +3,7 @@ package com.example.flashcard.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flashcard.domain.repository.AuthRepository
+import com.example.flashcard.domain.repository.FlashcardRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -12,10 +13,31 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.util.UUID
+
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val flashcardRepository: FlashcardRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    private val sharedPrefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
+    
+    val deviceId: String
+        get() {
+            var id = sharedPrefs.getString("device_id", null)
+            if (id == null) {
+                id = UUID.randomUUID().toString()
+                sharedPrefs.edit().putString("device_id", id).apply()
+            }
+            return id
+        }
+
+    private val _sessionExpired = MutableStateFlow(false)
+    val sessionExpired = _sessionExpired.asStateFlow()
 
     val currentUser = authRepository.currentUser
         .stateIn(
@@ -35,10 +57,25 @@ class AuthViewModel @Inject constructor(
             _isLoading.value = true
             _error.value = null
             val result = authRepository.signInWithEmailAndPassword(email, pass)
-            if (result.isFailure) {
+            if (result.isSuccess) {
+                // Cập nhật Session ID lên Firestore
+                flashcardRepository.updateSessionId(deviceId)
+            } else {
                 _error.value = result.exceptionOrNull()?.message ?: "Đăng nhập thất bại"
             }
             _isLoading.value = false
+        }
+    }
+
+    fun claimSession() {
+        if (currentUser.value != null) {
+            viewModelScope.launch {
+                try {
+                    flashcardRepository.updateSessionId(deviceId)
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
         }
     }
 
@@ -47,7 +84,10 @@ class AuthViewModel @Inject constructor(
             _isLoading.value = true
             _error.value = null
             val result = authRepository.signUpWithEmailAndPassword(email, pass)
-            if (result.isFailure) {
+            if (result.isSuccess) {
+                // Cập nhật Session ID cho tài khoản mới
+                flashcardRepository.updateSessionId(deviceId)
+            } else {
                 _error.value = result.exceptionOrNull()?.message ?: "Đăng ký thất bại"
             }
             _isLoading.value = false
@@ -55,7 +95,18 @@ class AuthViewModel @Inject constructor(
     }
 
     fun signOut() {
-        authRepository.signOut()
+        viewModelScope.launch {
+            flashcardRepository.clearLocalData()
+            authRepository.signOut()
+        }
+    }
+
+    fun notifySessionExpired() {
+        _sessionExpired.value = true
+    }
+
+    fun clearSessionExpired() {
+        _sessionExpired.value = false
     }
 
     fun clearError() {
